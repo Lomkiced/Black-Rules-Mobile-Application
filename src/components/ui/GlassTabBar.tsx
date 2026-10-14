@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,11 +5,11 @@ import * as Haptics from 'expo-haptics';
 import { Moon, BookOpen, Swords, BarChart3 } from 'lucide-react-native';
 import { colors, fonts, radius } from '../../theme/tokens';
 
-export const GlassTabBar: React.FC<BottomTabBarProps> = ({
+export const GlassTabBar = ({
   state,
   descriptors,
   navigation,
-}) => {
+}: BottomTabBarProps) => {
   const insets = useSafeAreaInsets();
 
   const getTabIcon = (routeName: string, isFocused: boolean) => {
@@ -57,7 +56,7 @@ export const GlassTabBar: React.FC<BottomTabBarProps> = ({
       pointerEvents="box-none"
     >
       <View style={styles.tabBar}>
-        {state.routes.map((route, index) => {
+        {state.routes.map((route: { key: string; name: string }, index: number) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
 

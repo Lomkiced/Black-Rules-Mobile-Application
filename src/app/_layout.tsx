@@ -1,7 +1,9 @@
-import React, { useEffect } from 'react';
+import '../../global.css';
+import { useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   useFonts,
@@ -49,30 +51,32 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <View style={styles.container}>
-        <StatusBar style="light" backgroundColor={colors.surface} />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.surface },
-            animation: 'fade',
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="paywall"
-            options={{
-              presentation: 'modal',
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <View style={styles.container}>
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{
               headerShown: false,
               contentStyle: { backgroundColor: colors.surface },
+              animation: 'fade',
             }}
-          />
-        </Stack>
-      </View>
-    </QueryClientProvider>
+          >
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="paywall"
+              options={{
+                presentation: 'modal',
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.surface },
+              }}
+            />
+          </Stack>
+        </View>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
 

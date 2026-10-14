@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,10 +18,10 @@ const TABS: TabItemConfig[] = [
   { name: 'stats', label: 'Stats', iconName: 'radar' },
 ];
 
-export const FloatingBottomNav: React.FC<BottomTabBarProps> = ({
+export const FloatingBottomNav = ({
   state,
   navigation,
-}) => {
+}: BottomTabBarProps) => {
   const insets = useSafeAreaInsets();
 
   return (
@@ -38,7 +37,7 @@ export const FloatingBottomNav: React.FC<BottomTabBarProps> = ({
       <View style={styles.pillContainer}>
         {TABS.map((tab) => {
           // Find matching route by name prefix
-          const routeIndex = state.routes.findIndex((r) => r.name === tab.name);
+          const routeIndex = state.routes.findIndex((r: { name: string }) => r.name === tab.name);
           const isFocused = state.index === routeIndex;
           const routeKey = state.routes[routeIndex]?.key;
 
