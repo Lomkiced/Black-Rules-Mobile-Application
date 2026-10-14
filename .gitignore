@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Expo & Metro
+.expo/
+dist/
+web-build/
+
+# Native builds (managed Expo)
+android/
+ios/
+
+# Environment variables
+.env
+.env*.local
+.env.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary cache
+.eslintcache
+tmp/
+temp/
