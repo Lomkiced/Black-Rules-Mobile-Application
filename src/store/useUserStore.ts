@@ -29,7 +29,18 @@ interface UserStoreState {
   // Search & Filter
   archiveSearch: string;
 
+  // Onboarding & Auth Lifecycle
+  hasSeenIntro: boolean;
+  isAuthenticated: boolean;
+  hasCompletedDiagnostic: boolean;
+  operativeName: string;
+  operativeEmail: string;
+
   // Actions
+  completeIntro: () => void;
+  loginOperative: (email?: string, name?: string) => void;
+  completeDiagnostic: (calibratedStats?: Partial<Record<TraitKey, number>>) => void;
+  logoutAndResetFlow: () => void;
   setPro: (isPro: boolean) => void;
   toggleChallenge: () => void;
   incrementStreak: () => void;
@@ -74,6 +85,12 @@ export const useUserStore = create<UserStoreState>()(
       isChallengeCompleted: false,
       freeAdvisorUsesLeft: 1,
 
+      hasSeenIntro: false,
+      isAuthenticated: false,
+      hasCompletedDiagnostic: false,
+      operativeName: 'Elena Vance',
+      operativeEmail: 'strategist@blackrules.io',
+
       rules: BLACK_RULES,
       scenarios: ARENA_SCENARIOS,
       curriculums: CURRICULUMS,
@@ -83,6 +100,38 @@ export const useUserStore = create<UserStoreState>()(
       completedScenarioIds: [],
 
       archiveSearch: '',
+
+      completeIntro: () => set({ hasSeenIntro: true }),
+
+      loginOperative: (email, name) =>
+        set((state) => ({
+          isAuthenticated: true,
+          operativeEmail: email || state.operativeEmail,
+          operativeName: name || state.operativeName,
+        })),
+
+      completeDiagnostic: (calibratedStats) =>
+        set((state) => {
+          if (!calibratedStats) {
+            return { hasCompletedDiagnostic: true };
+          }
+          const updatedStats = { ...state.stats };
+          (Object.keys(calibratedStats) as TraitKey[]).forEach((key) => {
+            const delta = calibratedStats[key] ?? 0;
+            updatedStats[key] = Math.max(10, Math.min(100, updatedStats[key] + delta));
+          });
+          return {
+            stats: updatedStats,
+            hasCompletedDiagnostic: true,
+          };
+        }),
+
+      logoutAndResetFlow: () =>
+        set({
+          hasSeenIntro: false,
+          isAuthenticated: false,
+          hasCompletedDiagnostic: false,
+        }),
 
       setPro: (isPro) => set({ isPro }),
 
@@ -235,6 +284,11 @@ export const useUserStore = create<UserStoreState>()(
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         isPro: state.isPro,
+        hasSeenIntro: state.hasSeenIntro,
+        isAuthenticated: state.isAuthenticated,
+        hasCompletedDiagnostic: state.hasCompletedDiagnostic,
+        operativeName: state.operativeName,
+        operativeEmail: state.operativeEmail,
         streak: state.streak,
         streakCount: state.streakCount,
         xp: state.xp,

@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Image, Pressable, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, fonts } from '../../theme/tokens';
+import { useUserStore } from '../../store/useUserStore';
 
 const LOGO_URI =
   'https://lh3.googleusercontent.com/aida/AEtjO1VpScQ8WRCEqUh13NVskeMXCHPhejMae5qEgeSlZJL6dtqTMREW0FF78jRUK6sLlE3lDDAfbuB-Sza74J5XRH0uTQgMS5yz9Pdm0QGJ3-9DQDRhCH_Jc9J_mmJ8-N6x6-iQIYmHESgUkzfrJsN2NnlfUyzlaGskRTcRUxd-UNryPtB4DAR9QiHgtqn4VIHiFhDk8a4fj9-MsyLajODWrmB9t8dknmgAYkg4lxDQ1Kr73DsA7jzD2h4C3OQ';
@@ -23,6 +24,7 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { logoutAndResetFlow } = useUserStore();
 
   const handleProfilePress = () => {
     try {
@@ -30,7 +32,28 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
     } catch {
       // safe fallback
     }
-    router.push('/(auth)/login');
+    Alert.alert(
+      'SOVEREIGN CLEARANCE',
+      'Select administrative security protocol:',
+      [
+        {
+          text: 'Open Sovereign Paywall',
+          onPress: () => router.push('/paywall'),
+        },
+        {
+          text: 'Lock Vault / Replay Intro & Login',
+          style: 'destructive',
+          onPress: () => {
+            logoutAndResetFlow();
+            router.replace('/(onboarding)/welcome' as any);
+          },
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
   };
 
   const handleSearchPress = () => {

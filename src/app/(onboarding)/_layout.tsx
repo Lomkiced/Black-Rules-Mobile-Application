@@ -10,7 +10,8 @@ export default function OnboardingLayout() {
         contentStyle: { backgroundColor: colors.obsidian },
       }}
     >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="welcome" options={{ headerShown: false }} />
+      <Stack.Screen name="diagnostic" options={{ headerShown: false }} />
       <Stack.Screen
         name="paywall"
         options={{

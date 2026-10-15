@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Eye, EyeOff, Fingerprint, ArrowRight } from 'lucide-react-native';
 import { colors, fonts } from '../../theme/tokens';
+import { useUserStore } from '../../store/useUserStore';
 
 const LOGO_URI =
   'https://lh3.googleusercontent.com/aida/AEtjO1VpScQ8WRCEqUh13NVskeMXCHPhejMae5qEgeSlZJL6dtqTMREW0FF78jRUK6sLlE3lDDAfbuB-Sza74J5XRH0uTQgMS5yz9Pdm0QGJ3-9DQDRhCH_Jc9J_mmJ8-N6x6-iQIYmHESgUkzfrJsN2NnlfUyzlaGskRTcRUxd-UNryPtB4DAR9QiHgtqn4VIHiFhDk8a4fj9-MsyLajODWrmB9t8dknmgAYkg4lxDQ1Kr73DsA7jzD2h4C3OQ';
@@ -21,6 +22,7 @@ const LOGO_URI =
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { loginOperative, hasCompletedDiagnostic } = useUserStore();
 
   const [mode, setMode] = useState<'signin' | 'register'>('signin');
   const [email, setEmail] = useState('');
@@ -38,23 +40,42 @@ export default function LoginScreen() {
     }
     setIsVerifying(true);
     setTimeout(() => {
+      loginOperative(email.trim() || undefined);
       setIsVerifying(false);
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {
         // safe fallback
       }
-      router.replace('/(tabs)');
-    }, 900);
+      if (hasCompletedDiagnostic) {
+        router.replace('/(tabs)');
+      } else {
+        router.replace('/(onboarding)/diagnostic' as any);
+      }
+    }, 700);
   };
 
   const handleBiometricAuth = () => {
     try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {
       // safe fallback
     }
-    router.replace('/(tabs)');
+    setIsVerifying(true);
+    setTimeout(() => {
+      loginOperative(email.trim() || 'elena.vance@blackrules.io');
+      setIsVerifying(false);
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch {
+        // safe fallback
+      }
+      if (hasCompletedDiagnostic) {
+        router.replace('/(tabs)');
+      } else {
+        router.replace('/(onboarding)/diagnostic' as any);
+      }
+    }, 700);
   };
 
   return (
@@ -76,10 +97,27 @@ export default function LoginScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Status Pill */}
-        <View style={styles.statusPill}>
-          <View style={styles.pulsingDot} />
-          <Text style={styles.statusText}>ENCRYPTED DOSSIER // ACCESS GATEWAY</Text>
+        {/* Top Navigation Row: Back to Intro & Status Pill */}
+        <View style={styles.topNavRow}>
+          <Pressable
+            onPress={() => {
+              try {
+                Haptics.selectionAsync();
+              } catch {
+                // safe fallback
+              }
+              router.replace('/(onboarding)/welcome' as any);
+            }}
+            style={styles.backToIntroBtn}
+            hitSlop={10}
+          >
+            <Text style={styles.backToIntroText}>← Back to Intro</Text>
+          </Pressable>
+
+          <View style={styles.statusPill}>
+            <View style={styles.pulsingDot} />
+            <Text style={styles.statusText}>ACCESS GATEWAY</Text>
+          </View>
         </View>
 
         {/* Identity Crest & Header */}
@@ -218,7 +256,7 @@ export default function LoginScreen() {
             {isVerifying ? (
               <View style={styles.verifyingRow}>
                 <ActivityIndicator size="small" color={colors.onPrimary} />
-                <Text style={styles.submitBtnText}>VERIFYING CLEARANCE...</Text>
+                <Text style={styles.submitBtnText}>VERIFYING SOVEREIGN CLEARANCE...</Text>
               </View>
             ) : (
               <View style={styles.verifyingRow}>
@@ -299,16 +337,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 20,
   },
+  topNavRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+  backToIntroBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  backToIntroText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 11,
+    color: colors.primary,
+    letterSpacing: 0.8,
+  },
   statusPill: {
-    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: colors.surfaceContainerLow,
     borderWidth: 1,
     borderColor: colors.outlineVariant,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 9999,
   },
   pulsingDot: {
