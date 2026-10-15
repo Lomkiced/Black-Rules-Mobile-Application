@@ -42,7 +42,7 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
     if (onSearchPress) {
       onSearchPress();
     } else {
-      router.push('/(tabs)/codex');
+      router.push('/advisor' as any);
     }
   };
 

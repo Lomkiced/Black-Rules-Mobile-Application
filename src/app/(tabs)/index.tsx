@@ -17,6 +17,7 @@ export default function DailyShadowScreen() {
     isChallengeCompleted,
     toggleChallenge,
     curriculums,
+    masteredRuleIds,
   } = useUserStore();
 
   const handleToggleChallenge = () => {
@@ -41,6 +42,15 @@ export default function DailyShadowScreen() {
     router.push('/(tabs)/codex/08');
   };
 
+  const handleAdvisorPress = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {
+      // safe fallback
+    }
+    router.push('/advisor' as any);
+  };
+
   return (
     <View style={styles.root}>
       <TopAppBar title="Daily Shadow" />
@@ -50,7 +60,7 @@ export default function DailyShadowScreen() {
         contentContainerStyle={[
           styles.content,
           {
-            paddingBottom: insets.bottom + 94,
+            paddingBottom: 120,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -78,6 +88,30 @@ export default function DailyShadowScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Tactical AI Advisor Live Dilemma Banner */}
+        <Pressable
+          onPress={handleAdvisorPress}
+          style={styles.advisorCard}
+        >
+          <View style={styles.advisorHeader}>
+            <View style={styles.advisorBadge}>
+              <View style={styles.advisorPulseDot} />
+              <Text style={styles.advisorBadgeText}>TACTICAL AI ADVISOR</Text>
+            </View>
+            <AppIcon name="bolt" size={16} color={colors.primary} />
+          </View>
+
+          <Text style={styles.advisorTitle}>ANALYZE LIVE DILEMMA</Text>
+          <Text style={styles.advisorSub}>
+            Simulate verbal defense scripts & power dynamics before high-stakes confrontations.
+          </Text>
+
+          <View style={styles.advisorFooter}>
+            <Text style={styles.advisorFooterText}>DISPATCH LIVE ADVISOR</Text>
+            <AppIcon name="arrow_forward" size={14} color={colors.primary} />
+          </View>
+        </Pressable>
 
         {/* Hero Card: Black Rule // 012 */}
         <View style={styles.heroCard}>
@@ -165,27 +199,47 @@ export default function DailyShadowScreen() {
           <Text style={styles.sectionTitle}>ACTIVE CURRICULUMS</Text>
 
           <View style={styles.curriculumsList}>
-            {curriculums.map((curr) => (
-              <View key={curr.id} style={styles.curriculumCard}>
-                <View style={styles.currTopRow}>
-                  <View>
-                    <Text style={styles.currTitle}>{curr.title}</Text>
-                    <Text style={styles.currSubtitle}>{curr.subtitle}</Text>
-                  </View>
-                  <Text style={styles.currPercent}>{curr.progressPercent}%</Text>
-                </View>
+            {curriculums.map((curr) => {
+              const isMastered = masteredRuleIds.includes(curr.defaultRuleId);
+              const baseCount =
+                curr.id === 'curr-1'
+                  ? 12
+                  : curr.id === 'curr-2'
+                  ? 16
+                  : curr.id === 'curr-3'
+                  ? 7
+                  : curr.id === 'curr-5'
+                  ? 9
+                  : 0;
+              const count = Math.min(curr.totalRules, baseCount + (isMastered ? 1 : 0));
+              const percent = Math.round((count / curr.totalRules) * 100);
 
-                {/* Progress Bar */}
-                <View style={styles.currTrack}>
-                  <View
-                    style={[
-                      styles.currFill,
-                      { width: `${curr.progressPercent}%` },
-                    ]}
-                  />
-                </View>
-              </View>
-            ))}
+              return (
+                <Pressable
+                  key={curr.id}
+                  onPress={() => router.push(curr.isPro ? '/paywall' : `/(tabs)/codex/${curr.defaultRuleId}`)}
+                  style={styles.curriculumCard}
+                >
+                  <View style={styles.currTopRow}>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={styles.currTitle}>{curr.title}</Text>
+                      <Text style={styles.currSubtitle}>{curr.subtitle}</Text>
+                    </View>
+                    <Text style={styles.currPercent}>{percent}%</Text>
+                  </View>
+
+                  {/* Progress Bar */}
+                  <View style={styles.currTrack}>
+                    <View
+                      style={[
+                        styles.currFill,
+                        { width: `${percent}%` },
+                      ]}
+                    />
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       </ScrollView>
@@ -463,5 +517,62 @@ const styles = StyleSheet.create({
   currFill: {
     height: '100%',
     backgroundColor: colors.primary,
+  },
+  advisorCard: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: 'rgba(242, 202, 80, 0.4)',
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+  },
+  advisorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  advisorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(242, 202, 80, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  advisorPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+  },
+  advisorBadgeText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 9,
+    color: colors.primary,
+    letterSpacing: 1,
+  },
+  advisorTitle: {
+    fontFamily: fonts.headlineMedium,
+    fontSize: 16,
+    color: colors.onSurface,
+  },
+  advisorSub: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.onSurfaceVariant,
+    lineHeight: 18,
+  },
+  advisorFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  advisorFooterText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 10,
+    color: colors.primary,
+    letterSpacing: 1,
   },
 });

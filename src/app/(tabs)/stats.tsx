@@ -1,6 +1,4 @@
-import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { TopAppBar } from '../../components/ui/TopAppBar';
@@ -8,60 +6,54 @@ import { AppIcon } from '../../components/ui/AppIcon';
 import { RadarChart } from '../../components/features/RadarChart';
 import { colors, fonts } from '../../theme/tokens';
 import { useUserStore } from '../../store/useUserStore';
+import { TraitKey } from '../../types';
 
 const ELENA_AVATAR =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuCrGG84acRosCC5hZ-eL73H6Ptl9iHaPEf11DlKHKInScqxXhEFhGr8i9juFcJ7DB94XJHaeaxtvvOGqxATmJpa27fMA5cLBS4uk6ad6HrkmqlTHg3i1H1ttqwCJ5vKuU5GzZVvrH2wIlfG1By_lv4bMOAJKWkqCauXwPKMBnuCqiWcJvwHIWyFlkDXEMC5blfRMcecNVJfYeVVxmDDQ8pWpKzok8P7BICPAMVqQygiXIZ8nF6W-e6z2w';
 
-interface TraitVelocity {
-  key: string;
+interface TraitVelocityConfig {
+  key: TraitKey;
   label: string;
-  val: number;
   delta: string;
   desc: string;
 }
 
-const TRAIT_VELOCITIES: TraitVelocity[] = [
+const TRAIT_VELOCITIES: TraitVelocityConfig[] = [
   {
     key: 'stoicism',
     label: 'STOICISM',
-    val: 82,
     delta: '+6.8%',
     desc: 'Unwavering neutrality under boardroom duress.',
   },
   {
     key: 'persuasion',
     label: 'PERSUASION',
-    val: 68,
     delta: '+3.4%',
     desc: 'Subconscious anchoring and framing dominance.',
   },
   {
     key: 'assertiveness',
     label: 'ASSERTIVENESS',
-    val: 75,
     delta: '+4.1%',
     desc: 'Friction tolerance and boundary enforcement.',
   },
   {
     key: 'awareness',
     label: 'AWARENESS',
-    val: 90,
     delta: '+8.2%',
     desc: 'Micro-expression reading and deception detection.',
   },
   {
     key: 'negotiation',
     label: 'NEGOTIATION',
-    val: 60,
     delta: '+1.9%',
     desc: 'Information asymmetry and concession pacing.',
   },
 ];
 
 export default function StatsScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { stats, isPro } = useUserStore();
+  const { stats, xp, levelTier, streak, scenariosWon, isPro } = useUserStore();
 
   const handleUpgradePress = () => {
     try {
@@ -72,18 +64,15 @@ export default function StatsScreen() {
     router.push('/paywall');
   };
 
+  const xpPercentage = Math.min(100, Math.round((xp / 5000) * 100));
+
   return (
     <View style={styles.root}>
       <TopAppBar title="Stats" />
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingBottom: insets.bottom + 94,
-          },
-        ]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         {/* Top Profile Card */}
@@ -98,7 +87,7 @@ export default function StatsScreen() {
 
             <View style={styles.profileInfo}>
               <View style={styles.tierPill}>
-                <Text style={styles.tierPillText}>TIER III: TACTICIAN</Text>
+                <Text style={styles.tierPillText}>{levelTier.toUpperCase()}</Text>
               </View>
               <Text style={styles.profileName}>Elena Vance</Text>
               <Text style={styles.profileDesignation}>Lead Corporate Strategist</Text>
@@ -109,22 +98,24 @@ export default function StatsScreen() {
           <View style={styles.calibrationSection}>
             <View style={styles.calibrationRow}>
               <Text style={styles.calibrationLabel}>AXIOM CALIBRATION</Text>
-              <Text style={styles.calibrationValue}>69% • 3,450 / 5,000 XP</Text>
+              <Text style={styles.calibrationValue}>
+                {xpPercentage}% • {xp.toLocaleString()} / 5,000 XP
+              </Text>
             </View>
             <View style={styles.track}>
-              <View style={[styles.fill, { width: '69%' }]} />
+              <View style={[styles.fill, { width: `${xpPercentage}%` }]} />
             </View>
           </View>
 
           {/* 3-Column Metrics */}
           <View style={styles.metricsRow}>
             <View style={styles.metricCol}>
-              <Text style={styles.metricNumber}>42</Text>
+              <Text style={styles.metricNumber}>{scenariosWon}</Text>
               <Text style={styles.metricLabel}>Scenarios Won</Text>
             </View>
             <View style={styles.metricDivider} />
             <View style={styles.metricCol}>
-              <Text style={styles.metricNumber}>14D</Text>
+              <Text style={styles.metricNumber}>{streak}D</Text>
               <Text style={styles.metricLabel}>Streak Active</Text>
             </View>
             <View style={styles.metricDivider} />
@@ -153,27 +144,31 @@ export default function StatsScreen() {
           <Text style={styles.sectionHeader}>MOMENTUM VELOCITY</Text>
 
           <View style={styles.velocityList}>
-            {TRAIT_VELOCITIES.map((item) => (
-              <View key={item.key} style={styles.velocityCard}>
-                <View style={styles.velocityTop}>
-                  <View style={styles.velocityLabelGroup}>
-                    <Text style={styles.velocityTitle}>{item.label}</Text>
-                    <View style={styles.deltaBadge}>
-                      <Text style={styles.deltaText}>{item.delta}</Text>
+            {TRAIT_VELOCITIES.map((item) => {
+              const currentScore = stats[item.key] ?? 50;
+
+              return (
+                <View key={item.key} style={styles.velocityCard}>
+                  <View style={styles.velocityTop}>
+                    <View style={styles.velocityLabelGroup}>
+                      <Text style={styles.velocityTitle}>{item.label}</Text>
+                      <View style={styles.deltaBadge}>
+                        <Text style={styles.deltaText}>{item.delta}</Text>
+                      </View>
                     </View>
+                    <Text style={styles.velocityScore}>{currentScore}%</Text>
                   </View>
-                  <Text style={styles.velocityScore}>{item.val}%</Text>
-                </View>
 
-                <Text style={styles.velocityDesc}>{item.desc}</Text>
+                  <Text style={styles.velocityDesc}>{item.desc}</Text>
 
-                <View style={styles.velocityTrack}>
-                  <View
-                    style={[styles.velocityFill, { width: `${item.val}%` }]}
-                  />
+                  <View style={styles.velocityTrack}>
+                    <View
+                      style={[styles.velocityFill, { width: `${currentScore}%` }]}
+                    />
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         </View>
 
@@ -216,6 +211,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 16,
+    paddingBottom: 120, // Clean clearance above floating tab bar
     gap: 18,
   },
   profileCard: {

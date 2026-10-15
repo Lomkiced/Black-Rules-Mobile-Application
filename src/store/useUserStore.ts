@@ -1,34 +1,30 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BlackRule, CharacterStats, Scenario } from '../types';
-import { INITIAL_STATS, MOCK_RULES, MOCK_SCENARIOS } from './mockData';
-
-interface CurriculumProgress {
-  id: string;
-  title: string;
-  subtitle: string;
-  progressPercent: number;
-}
+import { BlackRule, CharacterStats, ArenaScenario, Curriculum, TraitKey } from '../types';
+import { INITIAL_STATS, BLACK_RULES, ARENA_SCENARIOS, CURRICULUMS } from './mockData';
 
 interface UserStoreState {
-  // User Profile & Subscription
+  // User Profile & Metrics
   userId: string;
   isPro: boolean;
-  streakCount: number;
+  streak: number;
+  streakCount: number; // alias
   xp: number;
-  level: number;
+  levelTier: string;
+  scenariosWon: number;
   stats: CharacterStats;
   isChallengeCompleted: boolean;
+  freeAdvisorUsesLeft: number;
 
   // Content Data
   rules: BlackRule[];
-  scenarios: Scenario[];
+  scenarios: ArenaScenario[];
+  curriculums: Curriculum[];
   completedRuleIds: string[];
   bookmarkedRuleIds: string[];
   masteredRuleIds: string[];
   completedScenarioIds: string[];
-  curriculums: CurriculumProgress[];
 
   // Search & Filter
   archiveSearch: string;
@@ -37,47 +33,54 @@ interface UserStoreState {
   setPro: (isPro: boolean) => void;
   toggleChallenge: () => void;
   incrementStreak: () => void;
+  toggleBookmarkedRule: (ruleId: string) => void;
+  toggleMasteredRule: (ruleId: string) => void;
+  completeArenaScenario: (
+    scenarioId: string,
+    expReward: number,
+    traitDeltas: Partial<Record<TraitKey, number>>
+  ) => void;
+  useAdvisorCredit: () => void;
+  setArchiveSearch: (search: string) => void;
+  resetProgress: () => void;
+
+  // Backwards-compatible aliases
   toggleBookmark: (ruleId: string) => void;
   toggleMastered: (ruleId: string) => void;
   markRuleComplete: (ruleId: string) => void;
-  applyStatDelta: (deltas: Partial<Record<keyof CharacterStats, number>>, xpEarned: number) => void;
+  applyStatDelta: (deltas: Partial<Record<TraitKey, number>>, xpEarned: number) => void;
   recordScenarioCompletion: (scenarioId: string) => void;
-  setArchiveSearch: (search: string) => void;
-  resetProgress: () => void;
 }
+
+const computeLevelTier = (xp: number): string => {
+  if (xp >= 5000) return 'Tier V: Grand Sovereign';
+  if (xp >= 4000) return 'Tier IV: Master Architect';
+  if (xp >= 3000) return 'Tier III: Tactician';
+  if (xp >= 2000) return 'Tier II: Operative';
+  return 'Tier I: Initiate';
+};
 
 export const useUserStore = create<UserStoreState>()(
   persist(
     (set) => ({
       userId: 'usr_black_rules_shadow',
       isPro: false,
+      streak: 14,
       streakCount: 14,
       xp: 3450,
-      level: 3,
+      levelTier: 'Tier III: Tactician',
+      scenariosWon: 42,
       stats: INITIAL_STATS,
       isChallengeCompleted: false,
+      freeAdvisorUsesLeft: 1,
 
-      rules: MOCK_RULES,
-      scenarios: MOCK_SCENARIOS,
-      completedRuleIds: ['rule-01'],
-      bookmarkedRuleIds: ['rule-02'],
-      masteredRuleIds: [],
+      rules: BLACK_RULES,
+      scenarios: ARENA_SCENARIOS,
+      curriculums: CURRICULUMS,
+      completedRuleIds: ['12'],
+      bookmarkedRuleIds: ['08'],
+      masteredRuleIds: ['12', '19'],
       completedScenarioIds: [],
-
-      curriculums: [
-        {
-          id: 'curr-1',
-          title: 'Office Politics',
-          subtitle: 'Level 4: Hierarchy Deflection',
-          progressPercent: 72,
-        },
-        {
-          id: 'curr-2',
-          title: 'Emotional Control',
-          subtitle: 'Level 2: The Poker Stance',
-          progressPercent: 45,
-        },
-      ],
 
       archiveSearch: '',
 
@@ -87,63 +90,73 @@ export const useUserStore = create<UserStoreState>()(
         set((state) => ({ isChallengeCompleted: !state.isChallengeCompleted })),
 
       incrementStreak: () =>
-        set((state) => ({ streakCount: state.streakCount + 1 })),
+        set((state) => ({
+          streak: state.streak + 1,
+          streakCount: state.streakCount + 1,
+        })),
 
-      toggleBookmark: (ruleId) =>
+      toggleBookmarkedRule: (ruleId) =>
         set((state) => {
-          const exists = state.bookmarkedRuleIds.includes(ruleId);
-          return {
-            bookmarkedRuleIds: exists
-              ? state.bookmarkedRuleIds.filter((id) => id !== ruleId)
-              : [...state.bookmarkedRuleIds, ruleId],
-          };
+          const cleanId = ruleId.replace('rule-', '');
+          const exists = state.bookmarkedRuleIds.includes(cleanId);
+          const updated = exists
+            ? state.bookmarkedRuleIds.filter((id) => id !== cleanId)
+            : [...state.bookmarkedRuleIds, cleanId];
+          return { bookmarkedRuleIds: updated };
         }),
 
-      toggleMastered: (ruleId) =>
+      toggleMasteredRule: (ruleId) =>
         set((state) => {
-          const exists = state.masteredRuleIds.includes(ruleId);
-          return {
-            masteredRuleIds: exists
-              ? state.masteredRuleIds.filter((id) => id !== ruleId)
-              : [...state.masteredRuleIds, ruleId],
-          };
+          const cleanId = ruleId.replace('rule-', '');
+          const isCurrentlyMastered = state.masteredRuleIds.includes(cleanId);
+          if (isCurrentlyMastered) {
+            return {
+              masteredRuleIds: state.masteredRuleIds.filter((id) => id !== cleanId),
+            };
+          } else {
+            const newXp = state.xp + 25;
+            const updatedStats = {
+              ...state.stats,
+              awareness: Math.min(100, state.stats.awareness + 1),
+              stoicism: Math.min(100, state.stats.stoicism + 1),
+            };
+            return {
+              masteredRuleIds: [...state.masteredRuleIds, cleanId],
+              xp: newXp,
+              levelTier: computeLevelTier(newXp),
+              stats: updatedStats,
+            };
+          }
         }),
 
-      markRuleComplete: (ruleId) =>
-        set((state) => {
-          if (state.completedRuleIds.includes(ruleId)) return state;
-          const newXp = state.xp + 40;
-          const newLevel = Math.floor(newXp / 1000) + 1;
-          return {
-            completedRuleIds: [...state.completedRuleIds, ruleId],
-            xp: newXp,
-            level: newLevel,
-          };
-        }),
-
-      applyStatDelta: (deltas, xpEarned) =>
+      completeArenaScenario: (scenarioId, expReward, traitDeltas) =>
         set((state) => {
           const updatedStats = { ...state.stats };
-          (Object.keys(deltas) as Array<keyof CharacterStats>).forEach((key) => {
-            const delta = deltas[key] ?? 0;
-            updatedStats[key] = Math.max(0, Math.min(100, updatedStats[key] + delta));
+          (Object.keys(traitDeltas) as TraitKey[]).forEach((key) => {
+            const delta = traitDeltas[key] ?? 0;
+            updatedStats[key] = Math.max(10, Math.min(100, updatedStats[key] + delta));
           });
-          const newXp = state.xp + xpEarned;
-          const newLevel = Math.floor(newXp / 1000) + 1;
+
+          const newXp = state.xp + expReward;
+          const completedScenarios = state.completedScenarioIds.includes(scenarioId)
+            ? state.completedScenarioIds
+            : [...state.completedScenarioIds, scenarioId];
+
           return {
-            stats: updatedStats,
             xp: newXp,
-            level: newLevel,
+            levelTier: computeLevelTier(newXp),
+            scenariosWon: state.scenariosWon + 1,
+            stats: updatedStats,
+            completedScenarioIds: completedScenarios,
           };
         }),
 
-      recordScenarioCompletion: (scenarioId) =>
-        set((state) => {
-          if (state.completedScenarioIds.includes(scenarioId)) return state;
-          return {
-            completedScenarioIds: [...state.completedScenarioIds, scenarioId],
-          };
-        }),
+      useAdvisorCredit: () =>
+        set((state) => ({
+          freeAdvisorUsesLeft: state.isPro
+            ? state.freeAdvisorUsesLeft
+            : Math.max(0, state.freeAdvisorUsesLeft - 1),
+        })),
 
       setArchiveSearch: (search) => set({ archiveSearch: search }),
 
@@ -151,26 +164,85 @@ export const useUserStore = create<UserStoreState>()(
         set({
           stats: INITIAL_STATS,
           xp: 3450,
-          level: 3,
+          levelTier: 'Tier III: Tactician',
+          streak: 14,
           streakCount: 14,
+          scenariosWon: 42,
           isChallengeCompleted: false,
-          completedRuleIds: ['rule-01'],
-          bookmarkedRuleIds: ['rule-02'],
-          masteredRuleIds: [],
+          freeAdvisorUsesLeft: 1,
+          completedRuleIds: ['12'],
+          bookmarkedRuleIds: ['08'],
+          masteredRuleIds: ['12', '19'],
           completedScenarioIds: [],
           archiveSearch: '',
         }),
+
+      // Aliases
+      toggleBookmark: (ruleId) => {
+        const cleanId = ruleId.replace('rule-', '');
+        set((state) => ({
+          bookmarkedRuleIds: state.bookmarkedRuleIds.includes(cleanId)
+            ? state.bookmarkedRuleIds.filter((id) => id !== cleanId)
+            : [...state.bookmarkedRuleIds, cleanId],
+        }));
+      },
+
+      toggleMastered: (ruleId) => {
+        const cleanId = ruleId.replace('rule-', '');
+        set((state) => {
+          const exists = state.masteredRuleIds.includes(cleanId);
+          return {
+            masteredRuleIds: exists
+              ? state.masteredRuleIds.filter((id) => id !== cleanId)
+              : [...state.masteredRuleIds, cleanId],
+          };
+        });
+      },
+
+      markRuleComplete: (ruleId) => {
+        const cleanId = ruleId.replace('rule-', '');
+        set((state) => ({
+          completedRuleIds: state.completedRuleIds.includes(cleanId)
+            ? state.completedRuleIds
+            : [...state.completedRuleIds, cleanId],
+        }));
+      },
+
+      applyStatDelta: (deltas, xpEarned) =>
+        set((state) => {
+          const updatedStats = { ...state.stats };
+          (Object.keys(deltas) as TraitKey[]).forEach((key) => {
+            const delta = deltas[key] ?? 0;
+            updatedStats[key] = Math.max(10, Math.min(100, updatedStats[key] + delta));
+          });
+          const newXp = state.xp + xpEarned;
+          return {
+            stats: updatedStats,
+            xp: newXp,
+            levelTier: computeLevelTier(newXp),
+          };
+        }),
+
+      recordScenarioCompletion: (scenarioId) =>
+        set((state) => ({
+          completedScenarioIds: state.completedScenarioIds.includes(scenarioId)
+            ? state.completedScenarioIds
+            : [...state.completedScenarioIds, scenarioId],
+        })),
     }),
     {
       name: 'black-rules-user-storage',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         isPro: state.isPro,
+        streak: state.streak,
         streakCount: state.streakCount,
         xp: state.xp,
-        level: state.level,
+        levelTier: state.levelTier,
+        scenariosWon: state.scenariosWon,
         stats: state.stats,
         isChallengeCompleted: state.isChallengeCompleted,
+        freeAdvisorUsesLeft: state.freeAdvisorUsesLeft,
         completedRuleIds: state.completedRuleIds,
         bookmarkedRuleIds: state.bookmarkedRuleIds,
         masteredRuleIds: state.masteredRuleIds,

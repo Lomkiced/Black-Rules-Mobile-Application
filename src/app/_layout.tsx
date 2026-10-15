@@ -73,6 +73,15 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: colors.surface },
               }}
             />
+            <Stack.Screen
+              name="advisor"
+              options={{
+                presentation: 'modal',
+                animation: 'slide_from_bottom',
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.surface },
+              }}
+            />
           </Stack>
         </View>
       </QueryClientProvider>

@@ -3,6 +3,8 @@ import { z } from 'zod';
 /**
  * 5 Core Character Defense Traits
  */
+export type TraitKey = 'stoicism' | 'persuasion' | 'assertiveness' | 'awareness' | 'negotiation';
+
 export const CharacterStatsSchema = z.object({
   stoicism: z.number().min(0).max(100),
   persuasion: z.number().min(0).max(100),
@@ -11,34 +13,84 @@ export const CharacterStatsSchema = z.object({
   negotiation: z.number().min(0).max(100),
 });
 
-export type CharacterStats = z.infer<typeof CharacterStatsSchema>;
+export type CharacterStats = Record<TraitKey, number>;
 
 /**
- * Black Rule Codex Structure
+ * Black Rule Codex Structure (Sprint 2 Specification)
  */
 export interface BlackRule {
   id: string;
-  number: number;
-  lawCode: string; // e.g. "LAW #01"
+  number: string;
+  category: string;
+  subtitle: string;
   title: string;
-  category: 'Defense' | 'Influence' | 'Power' | 'Deception' | 'Mastery';
+  summary: string;
+  impactScore: string;
+  studyTime: string;
+  isPro: boolean;
+  lawBullets: string[];
+  psychBullets: string[];
+  defenseBullets: string[];
+  scenarioTag: string;
   quote: string;
-  premise: string;
-  psychologicalTrap: string;
-  executionTactic: string;
-  reversal: string;
+  author: string;
+  audioDuration: string;
+  imageUrl: string;
+}
+
+/**
+ * Arena Tactical Options & Scenario Structure
+ */
+export interface ArenaOption {
+  id: 'A' | 'B' | 'C';
+  label: string;
+  riskTag: string;
+  isRecommended?: boolean;
+  ruleTag?: string;
+  quote: string;
+  tacticalEffect: string;
+  forecast: string;
+  expReward: number;
+  traitDeltas: Partial<Record<TraitKey, number>>;
+}
+
+export interface ArenaScenario {
+  id: string;
+  roomNumber: string;
+  title: string;
+  difficulty: string;
+  stars: number;
+  contextTag: string;
+  narrative: string;
+  question: string;
+  stakeholders: string;
+  isPro?: boolean;
+  options: ArenaOption[];
+}
+
+/**
+ * Curriculum / Bento Category Structure
+ */
+export interface Curriculum {
+  id: string;
+  title: string;
+  subtitle: string;
+  tag: string;
+  icon: string;
+  totalRules: number;
+  defaultRuleId: string;
   isPro: boolean;
 }
 
 /**
- * Interactive Arena Scenario Node & Choices
+ * Legacy Scenario Node Support (Backwards Compatibility)
  */
 export interface ScenarioChoice {
   id: string;
   label: string;
   description: string;
   consequence: string;
-  statImpacts: Partial<Record<keyof CharacterStats, number>>;
+  statImpacts: Partial<Record<TraitKey, number>>;
   xpReward: number;
   isOptimal: boolean;
   nextNodeId?: string;
@@ -56,7 +108,7 @@ export interface ScenarioNode {
 
 export interface Scenario {
   id: string;
-  code: string; // e.g. "SIM-01"
+  code: string;
   title: string;
   category: string;
   difficulty: 'Novice' | 'Calculated' | 'Ruthless';
@@ -78,5 +130,7 @@ export interface UserState {
   stats: CharacterStats;
   completedRuleIds: string[];
   bookmarkedRuleIds: string[];
+  masteredRuleIds: string[];
   completedScenarioIds: string[];
+  freeAdvisorUsesLeft: number;
 }

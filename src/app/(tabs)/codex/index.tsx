@@ -15,102 +15,53 @@ import { AppIcon } from '../../../components/ui/AppIcon';
 import { colors, fonts } from '../../../theme/tokens';
 import { useUserStore } from '../../../store/useUserStore';
 
-interface BentoCategory {
-  id: string;
-  title: string;
-  subtitle: string;
-  completed: number;
-  total: number;
-  category: 'Negotiation' | 'Boundaries' | 'Leadership' | 'Locked Pro' | 'Defense';
-  isProLocked: boolean;
-  ruleTargetId: string;
-}
-
-const BENTO_CARDS: BentoCategory[] = [
-  {
-    id: 'b1',
-    title: 'Negotiation & Leverage',
-    subtitle: 'Extracting optimum concession without overexposure.',
-    completed: 12,
-    total: 20,
-    category: 'Negotiation',
-    isProLocked: false,
-    ruleTargetId: '08',
-  },
-  {
-    id: 'b2',
-    title: 'Psychological Armor',
-    subtitle: 'Neutralizing shame tactics and emotional bait.',
-    completed: 16,
-    total: 20,
-    category: 'Defense',
-    isProLocked: false,
-    ruleTargetId: '01',
-  },
-  {
-    id: 'b3',
-    title: 'Executive Presence',
-    subtitle: 'Commanding physical room and silent authority.',
-    completed: 7,
-    total: 20,
-    category: 'Leadership',
-    isProLocked: false,
-    ruleTargetId: '02',
-  },
-  {
-    id: 'b4',
-    title: 'Boundaries & Friction',
-    subtitle: 'Installing ruthless perimeter standards gracefully.',
-    completed: 9,
-    total: 20,
-    category: 'Boundaries',
-    isProLocked: false,
-    ruleTargetId: '03',
-  },
-  {
-    id: 'b5',
-    title: 'Deception & Deflection',
-    subtitle: 'Detecting counterfeit signals and optical feints.',
-    completed: 0,
-    total: 20,
-    category: 'Locked Pro',
-    isProLocked: true,
-    ruleTargetId: '04',
-  },
-  {
-    id: 'b6',
-    title: 'Machiavellian Order',
-    subtitle: 'Long-term dynasty defense and coalition politics.',
-    completed: 0,
-    total: 20,
-    category: 'Locked Pro',
-    isProLocked: true,
-    ruleTargetId: '05',
-  },
-];
-
-const FILTER_PILLS = [
-  'All',
-  'Negotiation',
-  'Boundaries',
-  'Leadership',
-  'Locked Pro',
-] as const;
 
 export default function CodexCatalogScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const { isPro, archiveSearch, setArchiveSearch } = useUserStore();
+  const {
+    isPro,
+    curriculums,
+    masteredRuleIds,
+    archiveSearch,
+    setArchiveSearch,
+  } = useUserStore();
+
   const [activeFilter, setActiveFilter] = useState<string>('All');
 
-  const filteredCards = BENTO_CARDS.filter((card) => {
+  // Base progress map per curriculum ID
+  const baseProgress: Record<string, number> = {
+    'curr-1': 11,
+    'curr-2': 15,
+    'curr-3': 7,
+    'curr-4': 0,
+    'curr-5': 9,
+    'curr-6': 0,
+  };
+
+  const getMasteredCount = (currId: string, defaultRuleId: string, total: number) => {
+    const isMastered = masteredRuleIds.includes(defaultRuleId);
+    const base = baseProgress[currId] ?? 0;
+    return Math.min(total, base + (isMastered ? 1 : 0));
+  };
+
+  const FILTER_PILLS = [
+    'All',
+    'Negotiation',
+    'Defense',
+    'Leadership',
+    'Boundaries',
+    'Locked Pro',
+  ] as const;
+
+  const filteredCards = (curriculums || []).filter((card) => {
     const matchesFilter =
       activeFilter === 'All'
         ? true
         : activeFilter === 'Locked Pro'
-        ? card.isProLocked
-        : card.category === activeFilter;
+        ? card.isPro
+        : card.tag.toUpperCase().includes(activeFilter.toUpperCase());
 
     const matchesSearch =
       archiveSearch.trim() === ''
@@ -121,17 +72,17 @@ export default function CodexCatalogScreen() {
     return matchesFilter && matchesSearch;
   });
 
-  const handleCardPress = (card: BentoCategory) => {
+  const handleCardPress = (curr: typeof curriculums[0]) => {
     try {
       Haptics.selectionAsync();
     } catch {
       // safe fallback
     }
 
-    if (card.isProLocked && !isPro) {
+    if (curr.isPro && !isPro) {
       router.push('/paywall');
     } else {
-      router.push(`/(tabs)/codex/${card.ruleTargetId}`);
+      router.push(`/(tabs)/codex/${curr.defaultRuleId}`);
     }
   };
 
@@ -144,7 +95,7 @@ export default function CodexCatalogScreen() {
         contentContainerStyle={[
           styles.content,
           {
-            paddingBottom: insets.bottom + 94,
+            paddingBottom: 120,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -215,7 +166,8 @@ export default function CodexCatalogScreen() {
         {/* 2-Column Bento Grid */}
         <View style={styles.bentoGrid}>
           {filteredCards.map((card) => {
-            const isLocked = card.isProLocked && !isPro;
+            const isLocked = card.isPro && !isPro;
+            const mastered = getMasteredCount(card.id, card.defaultRuleId, card.totalRules);
 
             return (
               <Pressable
@@ -228,7 +180,7 @@ export default function CodexCatalogScreen() {
               >
                 <View style={styles.bentoTop}>
                   <Text style={styles.bentoCategory}>
-                    {card.category.toUpperCase()}
+                    {card.tag.toUpperCase()}
                   </Text>
                   {isLocked ? (
                     <View style={styles.proLockPill}>
@@ -237,7 +189,7 @@ export default function CodexCatalogScreen() {
                     </View>
                   ) : (
                     <Text style={styles.bentoProgressText}>
-                      {card.completed}/{card.total}
+                      {mastered}/{card.totalRules}
                     </Text>
                   )}
                 </View>
@@ -259,7 +211,7 @@ export default function CodexCatalogScreen() {
                       <View
                         style={[
                           styles.bentoFill,
-                          { width: `${(card.completed / card.total) * 100}%` },
+                          { width: `${(mastered / card.totalRules) * 100}%` },
                         ]}
                       />
                     </View>

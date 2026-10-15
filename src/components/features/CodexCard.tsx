@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Bookmark, Lock, CheckCircle2, AlertTriangle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { BlackRule } from '../../types';
-import { colors, fonts, radius } from '../../theme/tokens';
+import { colors, fonts } from '../../theme/tokens';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
 
@@ -51,10 +51,10 @@ export const CodexCard: React.FC<CodexCardProps> = ({
       {/* Header bar: Law Code & Bookmark */}
       <View style={styles.headerRow}>
         <View style={styles.codeGroup}>
-          <Text style={styles.lawCode}>{rule.lawCode}</Text>
+          <Text style={styles.lawCode}>RULE #{rule.number}</Text>
           <Badge
             label={rule.category}
-            variant={rule.category === 'Defense' ? 'crimson' : 'gold'}
+            variant="gold"
           />
           {rule.isPro && <Badge label="PRO" variant="gold" />}
         </View>
@@ -63,14 +63,14 @@ export const CodexCard: React.FC<CodexCardProps> = ({
           <Pressable onPress={handleBookmark} hitSlop={8} style={styles.iconBtn}>
             <Bookmark
               size={18}
-              color={isBookmarked ? colors.gold.DEFAULT : colors.zincMuted}
-              fill={isBookmarked ? colors.gold.DEFAULT : 'transparent'}
+              color={isBookmarked ? colors.primary : colors.outline}
+              fill={isBookmarked ? colors.primary : 'transparent'}
             />
           </Pressable>
           <Pressable onPress={handleComplete} hitSlop={8} style={styles.iconBtn}>
             <CheckCircle2
               size={18}
-              color={isCompleted ? colors.gold.DEFAULT : colors.zincMuted}
+              color={isCompleted ? colors.primary : colors.outline}
             />
           </Pressable>
         </View>
@@ -90,7 +90,7 @@ export const CodexCard: React.FC<CodexCardProps> = ({
           onPress={onUpgradePress}
           accessibilityRole="button"
         >
-          <Lock size={24} color={colors.gold.DEFAULT} />
+          <Lock size={24} color={colors.primary} />
           <Text style={styles.lockedTitle}>Classified Strategic Doctrine</Text>
           <Text style={styles.lockedSubtitle}>
             Unlock full execution tactics and defensive reversals with Pro.
@@ -98,26 +98,36 @@ export const CodexCard: React.FC<CodexCardProps> = ({
         </Pressable>
       ) : (
         <View style={styles.bodyContent}>
-          {/* Premise */}
+          {/* Summary / Premise */}
           <Text style={styles.sectionLabel}>THE DOCTRINE</Text>
-          <Text style={styles.premiseText}>{rule.premise}</Text>
+          <Text style={styles.premiseText}>{rule.summary}</Text>
 
-          {/* Psychological Trap */}
-          <View style={styles.trapBox}>
-            <View style={styles.trapHeader}>
-              <AlertTriangle size={14} color={colors.crimson.light} />
-              <Text style={styles.trapLabel}>PSYCHOLOGICAL TRAP</Text>
+          {/* Psychology Trap */}
+          {rule.psychBullets && rule.psychBullets.length > 0 && (
+            <View style={styles.trapBox}>
+              <View style={styles.trapHeader}>
+                <AlertTriangle size={14} color="#FCA5A5" />
+                <Text style={styles.trapLabel}>PSYCHOLOGICAL TRAP</Text>
+              </View>
+              <Text style={styles.trapText}>{rule.psychBullets[0]}</Text>
             </View>
-            <Text style={styles.trapText}>{rule.psychologicalTrap}</Text>
-          </View>
+          )}
 
-          {/* Execution Tactic */}
-          <Text style={styles.sectionLabel}>TACTICAL EXECUTION</Text>
-          <Text style={styles.tacticText}>{rule.executionTactic}</Text>
+          {/* Law / Tactic */}
+          {rule.lawBullets && rule.lawBullets.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>TACTICAL EXECUTION</Text>
+              <Text style={styles.tacticText}>{rule.lawBullets[0]}</Text>
+            </>
+          )}
 
-          {/* Reversal */}
-          <Text style={styles.sectionLabel}>THE REVERSAL</Text>
-          <Text style={styles.reversalText}>{rule.reversal}</Text>
+          {/* Defense / Reversal */}
+          {rule.defenseBullets && rule.defenseBullets.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>DEFENSIVE REVERSAL</Text>
+              <Text style={styles.reversalText}>{rule.defenseBullets[0]}</Text>
+            </>
+          )}
         </View>
       )}
     </Card>
@@ -127,9 +137,9 @@ export const CodexCard: React.FC<CodexCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     marginBottom: 20,
-    backgroundColor: colors.charcoal,
-    borderColor: colors.borderSubtle,
-    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceContainerLow,
+    borderColor: colors.outlineVariant,
+    borderRadius: 16,
   },
   headerRow: {
     flexDirection: 'row',
@@ -151,52 +161,52 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   lawCode: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.label,
     fontSize: 12,
-    color: colors.gold.DEFAULT,
+    color: colors.primary,
     letterSpacing: 1,
   },
   title: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.display,
     fontSize: 22,
-    color: colors.alabaster,
+    color: colors.onSurface,
     lineHeight: 28,
     marginBottom: 12,
   },
   quoteBox: {
     borderLeftWidth: 2,
-    borderLeftColor: colors.gold.DEFAULT,
+    borderLeftColor: colors.primary,
     paddingLeft: 12,
     marginBottom: 16,
   },
   quoteText: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.display,
     fontStyle: 'italic',
     fontSize: 13,
-    color: colors.zincMuted,
+    color: colors.onSurfaceVariant,
     lineHeight: 18,
   },
   bodyContent: {
     gap: 10,
   },
   sectionLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.gold.dark,
+    color: colors.primary,
     letterSpacing: 1.2,
     marginTop: 6,
   },
   premiseText: {
-    fontFamily: fonts.sans,
+    fontFamily: fonts.body,
     fontSize: 14,
-    color: colors.alabaster,
+    color: colors.onSurface,
     lineHeight: 21,
   },
   trapBox: {
-    backgroundColor: colors.crimson.muted,
-    borderColor: colors.crimson.DEFAULT,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: '#EF4444',
     borderWidth: 1,
-    borderRadius: radius.md,
+    borderRadius: 10,
     padding: 12,
     marginTop: 6,
     marginBottom: 6,
@@ -208,49 +218,49 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   trapLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.label,
     fontSize: 10,
     color: '#FCA5A5',
     letterSpacing: 1,
   },
   trapText: {
-    fontFamily: fonts.sans,
+    fontFamily: fonts.body,
     fontSize: 13,
-    color: colors.alabaster,
+    color: colors.onSurface,
     lineHeight: 19,
   },
   tacticText: {
-    fontFamily: fonts.sans,
+    fontFamily: fonts.body,
     fontSize: 14,
-    color: colors.alabaster,
+    color: colors.onSurface,
     lineHeight: 20,
   },
   reversalText: {
-    fontFamily: fonts.sans,
+    fontFamily: fonts.body,
     fontSize: 13,
-    color: colors.zincMuted,
+    color: colors.onSurfaceVariant,
     lineHeight: 19,
   },
   lockedContainer: {
     alignItems: 'center',
     paddingVertical: 24,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(212, 175, 55, 0.04)',
+    backgroundColor: 'rgba(242, 202, 80, 0.04)',
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.gold.DEFAULT,
-    borderRadius: radius.md,
+    borderColor: colors.primary,
+    borderRadius: 12,
     gap: 8,
   },
   lockedTitle: {
-    fontFamily: fonts.serif,
+    fontFamily: fonts.display,
     fontSize: 16,
-    color: colors.alabaster,
+    color: colors.onSurface,
   },
   lockedSubtitle: {
-    fontFamily: fonts.sans,
+    fontFamily: fonts.body,
     fontSize: 12,
-    color: colors.zincMuted,
+    color: colors.onSurfaceVariant,
     textAlign: 'center',
   },
 });

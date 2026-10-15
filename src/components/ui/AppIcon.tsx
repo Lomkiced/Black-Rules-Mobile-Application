@@ -22,6 +22,7 @@ import {
   Bookmark,
   Share2,
   PlayCircle,
+  PauseCircle,
   Fingerprint,
   Search,
   X,
@@ -31,6 +32,8 @@ import {
   Check,
   XCircle,
   HelpCircle,
+  Lightbulb,
+  Copy,
 } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 
@@ -136,6 +139,8 @@ export const AppIcon: React.FC<AppIconProps> = ({
       return <Share2 {...iconProps} />;
     case 'play_circle':
       return <PlayCircle {...iconProps} />;
+    case 'pause_circle':
+      return <PauseCircle {...iconProps} />;
     case 'fingerprint':
       return <Fingerprint {...iconProps} />;
     case 'search':
@@ -152,6 +157,10 @@ export const AppIcon: React.FC<AppIconProps> = ({
       return <Check {...iconProps} />;
     case 'cancel':
       return <XCircle {...iconProps} />;
+    case 'lightbulb':
+      return <Lightbulb {...iconProps} />;
+    case 'copy':
+      return <Copy {...iconProps} />;
     default:
       return <HelpCircle {...iconProps} />;
   }

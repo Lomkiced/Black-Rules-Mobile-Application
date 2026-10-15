@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,31 +14,11 @@ import * as Haptics from 'expo-haptics';
 import { AppIcon } from '../../../components/ui/AppIcon';
 import { colors, fonts } from '../../../theme/tokens';
 import { useUserStore } from '../../../store/useUserStore';
-
-const FIELD_IMAGE_URI =
-  'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80';
+import { BLACK_RULES } from '../../../store/mockData';
 
 type DoctrineTab = 'The Law' | 'Psychology' | 'Counter-Action';
 
 const DOCTRINE_TABS: DoctrineTab[] = ['The Law', 'Psychology', 'Counter-Action'];
-
-const TAB_POINTS: Record<DoctrineTab, string[]> = {
-  'The Law': [
-    'Silence forces the opposing party to fill the void with uncalibrated disclosures.',
-    'Every concession offered without explicit reciprocal demand devalues your position.',
-    'Maintain tactical ambiguity regarding your true reserve price and timing limits.',
-  ],
-  Psychology: [
-    'Adversaries project their own insecurities onto individuals who remain impassive.',
-    'The subconscious human urge to be understood is an exploitable security perimeter breach.',
-    'Premature transparency triggers immediate price discounting in corporate hierarchy.',
-  ],
-  'Counter-Action': [
-    'When pressed with direct ultimatums, deploy a calibrated mirroring label probe.',
-    'Hold unbroken eye contact for 3.5 seconds post-statement without nodding.',
-    'If forced to reveal data, provide ranges rather than precise operational metrics.',
-  ],
-};
 
 export default function CodexReaderScreen() {
   const insets = useSafeAreaInsets();
@@ -46,50 +26,79 @@ export default function CodexReaderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const {
+    isPro,
     bookmarkedRuleIds,
     masteredRuleIds,
-    toggleBookmark,
-    toggleMastered,
+    toggleBookmarkedRule,
+    toggleMasteredRule,
   } = useUserStore();
 
-  const ruleId = (id as string) || '08';
-  const isBookmarked = bookmarkedRuleIds.includes(`rule-${ruleId}`);
-  const isMastered = masteredRuleIds.includes(`rule-${ruleId}`);
+  // Find initial rule index based on route parameter
+  const initialIndex = BLACK_RULES.findIndex(
+    (r) => r.id === id || r.number === id
+  );
+  const [currentIndex, setCurrentIndex] = useState(
+    initialIndex !== -1 ? initialIndex : 0
+  );
+
+  const currentRule = BLACK_RULES[currentIndex] || BLACK_RULES[0];
+  const isBookmarked = bookmarkedRuleIds.includes(currentRule.id);
+  const isMastered = masteredRuleIds.includes(currentRule.id);
 
   const [activeTab, setActiveTab] = useState<DoctrineTab>('The Law');
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [secondsRemaining, setSecondsRemaining] = useState(220); // 3:40 default
+
+  // Audio countdown simulation
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval>;
+    if (isPlayingAudio && secondsRemaining > 0) {
+      timer = setInterval(() => {
+        setSecondsRemaining((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isPlayingAudio, secondsRemaining]);
+
+  const formatAudioTime = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const remainingSecs = sec % 60;
+    return `${mins}:${remainingSecs < 10 ? '0' : ''}${remainingSecs}`;
+  };
 
   const handleShare = async () => {
     try {
       Haptics.selectionAsync();
       await Share.share({
-        message:
-          'RULE #08 • LAW OF ASYMMETRY — Never Reveal Your Full Hand. "Those who know do not speak; those who speak do not know." #BlackRules',
+        message: `RULE #${currentRule.number} • ${currentRule.subtitle} — ${currentRule.title}.\n"${currentRule.quote}" — ${currentRule.author}\n\n#BlackRules #StrategicSovereignty`,
       });
     } catch {
       // safe fallback
     }
   };
 
-  const handleBookmarkToggle = () => {
+  const handleNextRule = () => {
     try {
-      Haptics.selectionAsync();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {
       // safe fallback
     }
-    toggleBookmark(`rule-${ruleId}`);
-  };
 
-  const handleMasteredToggle = () => {
-    try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      // safe fallback
+    const nextIndex = (currentIndex + 1) % BLACK_RULES.length;
+    const nextRule = BLACK_RULES[nextIndex];
+
+    if (nextRule.isPro && !isPro) {
+      router.push('/paywall');
+      return;
     }
-    toggleMastered(`rule-${ruleId}`);
+
+    setCurrentIndex(nextIndex);
+    setActiveTab('The Law');
+    setIsPlayingAudio(false);
+    setSecondsRemaining(220);
   };
 
-  const handleAudioToggle = () => {
+  const handleToggleAudio = () => {
     try {
       Haptics.selectionAsync();
     } catch {
@@ -97,6 +106,13 @@ export default function CodexReaderScreen() {
     }
     setIsPlayingAudio(!isPlayingAudio);
   };
+
+  const bullets =
+    activeTab === 'The Law'
+      ? currentRule.lawBullets
+      : activeTab === 'Psychology'
+      ? currentRule.psychBullets
+      : currentRule.defenseBullets;
 
   return (
     <View style={styles.root}>
@@ -119,12 +135,19 @@ export default function CodexReaderScreen() {
         </Pressable>
 
         <View style={styles.categoryPill}>
-          <Text style={styles.categoryPillText}>DEFENSIVE PSYCHOLOGY</Text>
+          <Text style={styles.categoryPillText}>{currentRule.category}</Text>
         </View>
 
         <View style={styles.rightIcons}>
           <Pressable
-            onPress={handleBookmarkToggle}
+            onPress={() => {
+              try {
+                Haptics.selectionAsync();
+              } catch {
+                // safe fallback
+              }
+              toggleBookmarkedRule(currentRule.id);
+            }}
             hitSlop={8}
             style={styles.iconBtn}
           >
@@ -147,18 +170,13 @@ export default function CodexReaderScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingBottom: insets.bottom + 94,
-          },
-        ]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         {/* Archive Entry Indicator */}
         <View style={styles.archiveIndicatorRow}>
           <Text style={styles.archiveIndicatorText}>
-            ARCHIVE ENTRY {ruleId} // 48
+            ARCHIVE ENTRY {currentRule.number} // 48
           </Text>
           <View style={styles.liveTag}>
             <View style={styles.pulsingDot} />
@@ -176,12 +194,14 @@ export default function CodexReaderScreen() {
 
           {/* Active Top Card */}
           <View style={styles.activeCard}>
-            {/* Watermark "08" */}
-            <Text style={styles.watermark}>{ruleId}</Text>
+            {/* Watermark Number */}
+            <Text style={styles.watermark}>{currentRule.number}</Text>
 
             {/* Card Header */}
-            <Text style={styles.lawCode}>RULE #{ruleId} • LAW OF ASYMMETRY</Text>
-            <Text style={styles.lawTitle}>Never Reveal Your Full Hand</Text>
+            <Text style={styles.lawCode}>
+              RULE #{currentRule.number} • {currentRule.subtitle}
+            </Text>
+            <Text style={styles.lawTitle}>{currentRule.title}</Text>
 
             {/* Segmented Tabs (The Law, Psychology, Counter-Action) */}
             <View style={styles.tabsRow}>
@@ -218,7 +238,7 @@ export default function CodexReaderScreen() {
 
             {/* Diamond-Bulleted Tactical List */}
             <View style={styles.bulletList}>
-              {TAB_POINTS[activeTab].map((point, idx) => (
+              {bullets.map((point, idx) => (
                 <View key={idx} style={styles.bulletRow}>
                   <Text style={styles.diamondIcon}>◆</Text>
                   <Text style={styles.bulletText}>{point}</Text>
@@ -229,14 +249,12 @@ export default function CodexReaderScreen() {
             {/* Field Scenario Image Card */}
             <View style={styles.scenarioCard}>
               <Image
-                source={{ uri: FIELD_IMAGE_URI }}
+                source={{ uri: currentRule.imageUrl }}
                 style={styles.scenarioImage}
                 resizeMode="cover"
               />
               <View style={styles.scenarioOverlay}>
-                <Text style={styles.scenarioTag}>
-                  SOVEREIGN BOARDROOM • LATENCY: NULL
-                </Text>
+                <Text style={styles.scenarioTag}>{currentRule.scenarioTag}</Text>
               </View>
             </View>
 
@@ -244,12 +262,8 @@ export default function CodexReaderScreen() {
             <View style={styles.quoteMonolith}>
               <View style={styles.quoteBar} />
               <View style={styles.quoteContent}>
-                <Text style={styles.quoteText}>
-                  "Those who know do not speak; those who speak do not know."
-                </Text>
-                <Text style={styles.quoteAuthor}>
-                  — Lao Tzu • Tao Te Ching
-                </Text>
+                <Text style={styles.quoteText}>"{currentRule.quote}"</Text>
+                <Text style={styles.quoteAuthor}>— {currentRule.author}</Text>
               </View>
             </View>
 
@@ -257,14 +271,14 @@ export default function CodexReaderScreen() {
             <View style={styles.actionRow}>
               {/* Audio Protocol Button */}
               <Pressable
-                onPress={handleAudioToggle}
+                onPress={handleToggleAudio}
                 style={[
                   styles.audioBtn,
                   isPlayingAudio && styles.audioBtnActive,
                 ]}
               >
                 <AppIcon
-                  name={isPlayingAudio ? 'timelapse' : 'play_circle'}
+                  name={isPlayingAudio ? 'pause_circle' : 'play_circle'}
                   size={16}
                   color={isPlayingAudio ? colors.primary : colors.onSurface}
                 />
@@ -274,13 +288,22 @@ export default function CodexReaderScreen() {
                     isPlayingAudio && styles.audioBtnTextActive,
                   ]}
                 >
-                  {isPlayingAudio ? 'Playing (3:40)' : 'Audio Protocol (3:40)'}
+                  {isPlayingAudio
+                    ? `Playing (${formatAudioTime(secondsRemaining)})`
+                    : `Audio (${currentRule.audioDuration})`}
                 </Text>
               </Pressable>
 
               {/* Mark Mastered Button */}
               <Pressable
-                onPress={handleMasteredToggle}
+                onPress={() => {
+                  try {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  } catch {
+                    // safe fallback
+                  }
+                  toggleMasteredRule(currentRule.id);
+                }}
                 style={[
                   styles.masteredBtn,
                   isMastered && styles.masteredBtnActive,
@@ -303,6 +326,12 @@ export default function CodexReaderScreen() {
             </View>
           </View>
         </View>
+
+        {/* Swipe up / Tap for Next Axiom Footer */}
+        <Pressable onPress={handleNextRule} style={styles.nextAxiomBar}>
+          <Text style={styles.nextAxiomText}>TAP OR SWIPE FOR NEXT AXIOM</Text>
+          <AppIcon name="arrow_forward" size={14} color={colors.primary} />
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -351,6 +380,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 16,
+    paddingBottom: 120, // Clean clearance above floating tab bar
     gap: 16,
   },
   archiveIndicatorRow: {
@@ -579,6 +609,11 @@ const styles = StyleSheet.create({
   audioBtnActive: {
     borderColor: colors.primary,
     backgroundColor: 'rgba(242, 202, 80, 0.1)',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 3,
   },
   audioBtnText: {
     fontFamily: fonts.label,
@@ -587,6 +622,7 @@ const styles = StyleSheet.create({
   },
   audioBtnTextActive: {
     color: colors.primary,
+    fontFamily: fonts.labelSemiBold,
   },
   masteredBtn: {
     flex: 1,
@@ -611,5 +647,22 @@ const styles = StyleSheet.create({
   },
   masteredBtnTextActive: {
     color: colors.onPrimary,
+  },
+  nextAxiomBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    backgroundColor: colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: 12,
+  },
+  nextAxiomText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 10,
+    color: colors.primary,
+    letterSpacing: 1.2,
   },
 });

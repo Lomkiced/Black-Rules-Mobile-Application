@@ -9,11 +9,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { TopAppBar } from '../../components/ui/TopAppBar';
 import { AppIcon } from '../../components/ui/AppIcon';
 import { colors, fonts } from '../../theme/tokens';
 import { useUserStore } from '../../store/useUserStore';
+import { ARENA_SCENARIOS } from '../../store/mockData';
+import { TraitKey } from '../../types';
 
 const ELENA_AVATAR =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuCrGG84acRosCC5hZ-eL73H6Ptl9iHaPEf11DlKHKInScqxXhEFhGr8i9juFcJ7DB94XJHaeaxtvvOGqxATmJpa27fMA5cLBS4uk6ad6HrkmqlTHg3i1H1ttqwCJ5vKuU5GzZVvrH2wIlfG1By_lv4bMOAJKWkqCauXwPKMBnuCqiWcJvwHIWyFlkDXEMC5blfRMcecNVJfYeVVxmDDQ8pWpKzok8P7BICPAMVqQygiXIZ8nF6W-e6z2w';
@@ -21,49 +24,50 @@ const ELENA_AVATAR =
 const MARCUS_AVATAR =
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80';
 
-type ChoiceKey = 'A' | 'B' | 'C';
-
-interface ArenaOption {
-  key: ChoiceKey;
-  code: string;
-  title: string;
-  desc: string;
-  posture: string;
-}
-
-const ARENA_OPTIONS: ArenaOption[] = [
-  {
-    key: 'A',
-    code: 'REACTIONARY // OVERT OPPOSITION',
-    title: 'Direct Confrontational Repudiation',
-    desc: 'Publicly interrupt Marcus and cite your private email chain as chronological proof of ownership.',
-    posture: 'High Emotional Risk • Subordinates View as Defensive',
-  },
-  {
-    key: 'B',
-    code: 'DEFENSIVE // CONCESSIONARY',
-    title: 'Submissive Protocol Deference',
-    desc: 'Nod along to avoid conflict during the session, planning to send an explanatory memo post-meeting.',
-    posture: 'Loss of Territorial Standing • Precedent Established',
-  },
-  {
-    key: 'C',
-    code: 'BLACK RULE #19: ARCHITECTURAL ANCHOR',
-    title: 'The Calibrated Anchor Inquiry',
-    desc: 'Acknowledge Marcus’ enthusiasm, then ask him to detail Phase 3 implementation metrics which only you engineered.',
-    posture: 'Total Sovereignty • Trap Sprung Gracefully',
-  },
-];
-
 export default function ArenaScreen() {
-  const insets = useSafeAreaInsets();
-  const { applyStatDelta } = useUserStore();
+  const router = useRouter();
+  const {
+    scenarios: storeScenarios,
+    isPro,
+    completeArenaScenario,
+    completedScenarioIds,
+  } = useUserStore();
 
-  const [selectedKey, setSelectedKey] = useState<ChoiceKey>('C');
+  const scenarios = storeScenarios && storeScenarios.length > 0 ? storeScenarios : ARENA_SCENARIOS;
+
+  const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
+  const [selectedKey, setSelectedKey] = useState<'A' | 'B' | 'C'>('C');
   const [isExecuting, setIsExecuting] = useState(false);
   const [isLockedIn, setIsLockedIn] = useState(false);
 
-  const handleSelectOption = (key: ChoiceKey) => {
+  const currentScenario = scenarios[currentScenarioIndex] || scenarios[0];
+  const isCompleted = completedScenarioIds?.includes(currentScenario.id) || false;
+  const isProRoom = currentScenario.isPro && !isPro;
+
+  const selectedOption =
+    currentScenario.options.find((opt) => opt.id === selectedKey) ||
+    currentScenario.options[0];
+
+  const handleSelectRoom = (index: number) => {
+    try {
+      Haptics.selectionAsync();
+    } catch {
+      // safe fallback
+    }
+
+    const targetScenario = scenarios[index];
+    if (targetScenario.isPro && !isPro) {
+      router.push('/paywall');
+      return;
+    }
+
+    setCurrentScenarioIndex(index);
+    setIsLockedIn(completedScenarioIds?.includes(targetScenario.id) || false);
+    setIsExecuting(false);
+    setSelectedKey(targetScenario.options.find((o) => o.isRecommended)?.id || 'A');
+  };
+
+  const handleSelectOption = (key: 'A' | 'B' | 'C') => {
     if (isLockedIn) return;
     try {
       Haptics.selectionAsync();
@@ -76,6 +80,11 @@ export default function ArenaScreen() {
   const handleExecute = () => {
     if (isLockedIn || isExecuting) return;
 
+    if (currentScenario.isPro && !isPro) {
+      router.push('/paywall');
+      return;
+    }
+
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {
@@ -87,14 +96,44 @@ export default function ArenaScreen() {
     setTimeout(() => {
       setIsExecuting(false);
       setIsLockedIn(true);
-      applyStatDelta({ stoicism: 4, awareness: 3, negotiation: 2 }, 42);
+      completeArenaScenario(
+        currentScenario.id,
+        selectedOption.expReward,
+        selectedOption.traitDeltas
+      );
 
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {
         // safe fallback
       }
-    }, 1200);
+    }, 900);
+  };
+
+  const handleNextRoom = () => {
+    try {
+      Haptics.selectionAsync();
+    } catch {
+      // safe fallback
+    }
+
+    const nextIndex = (currentScenarioIndex + 1) % scenarios.length;
+    const nextScenario = scenarios[nextIndex];
+    if (nextScenario.isPro && !isPro) {
+      router.push('/paywall');
+      return;
+    }
+
+    setCurrentScenarioIndex(nextIndex);
+    setIsLockedIn(completedScenarioIds?.includes(nextScenario.id) || false);
+    setIsExecuting(false);
+    setSelectedKey(nextScenario.options.find((o) => o.isRecommended)?.id || 'A');
+  };
+
+  const formatTraitDeltas = (deltas: Partial<Record<TraitKey, number>>) => {
+    return Object.entries(deltas)
+      .map(([key, val]) => `${key.toUpperCase()} ${val && val > 0 ? `+${val}` : val}`)
+      .join(' • ');
   };
 
   return (
@@ -103,18 +142,61 @@ export default function ArenaScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingBottom: insets.bottom + 94,
-          },
-        ]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Banner: Simulation Room 04 */}
+        {/* Room Selector Horizontal Pills */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.roomSelectorRow}
+        >
+          {scenarios.map((sc, idx) => {
+            const isActive = idx === currentScenarioIndex;
+            const isScCompleted = completedScenarioIds?.includes(sc.id);
+
+            return (
+              <Pressable
+                key={sc.id}
+                onPress={() => handleSelectRoom(idx)}
+                style={[
+                  styles.roomPill,
+                  isActive && styles.roomPillActive,
+                  sc.isPro && !isPro && styles.roomPillPro,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.roomPillText,
+                    isActive && styles.roomPillTextActive,
+                  ]}
+                >
+                  {sc.roomNumber}
+                </Text>
+
+                {sc.isPro && !isPro ? (
+                  <View style={styles.proTagSmall}>
+                    <AppIcon name="lock" size={9} color={colors.primary} />
+                    <Text style={styles.proTagSmallText}>PRO</Text>
+                  </View>
+                ) : isScCompleted ? (
+                  <AppIcon
+                    name="check_circle"
+                    size={11}
+                    color={isActive ? colors.onPrimary : colors.primary}
+                  />
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {/* Top Banner: Active Simulation Room Header */}
         <View style={styles.topBanner}>
           <View style={styles.bannerRow}>
-            <Text style={styles.roomCode}>SIMULATION ROOM 04</Text>
+            <Text style={styles.roomCode}>
+              {currentScenario.roomNumber} // {currentScenario.difficulty.toUpperCase()}
+            </Text>
             <View style={styles.timerTag}>
               <AppIcon name="timer" size={13} color={colors.primary} />
               <Text style={styles.timerText}>Live Pressure • 90s to Decide</Text>
@@ -122,16 +204,16 @@ export default function ArenaScreen() {
           </View>
 
           <View style={styles.scenarioTitleRow}>
-            <Text style={styles.scenarioTitle}>SCENARIO: THE CREDIT THIEF</Text>
-            {/* 3/5 gold stars */}
+            <Text style={styles.scenarioTitle}>{currentScenario.title}</Text>
+            {/* Gold stars */}
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map((s) => (
                 <AppIcon
                   key={s}
                   name="star"
                   size={12}
-                  color={s <= 3 ? colors.primary : colors.outlineVariant}
-                  filled={s <= 3}
+                  color={s <= currentScenario.stars ? colors.primary : colors.outlineVariant}
+                  filled={s <= currentScenario.stars}
                 />
               ))}
             </View>
@@ -141,7 +223,7 @@ export default function ArenaScreen() {
         {/* Narrative Context Card */}
         <View style={styles.contextCard}>
           <View style={styles.contextHeader}>
-            <Text style={styles.contextLabel}>CONTEXT: EXECUTIVE STRATEGY REVIEW</Text>
+            <Text style={styles.contextLabel}>{currentScenario.contextTag}</Text>
             <View style={styles.attentionTag}>
               <Text style={styles.attentionText}>ATTENTION: 100%</Text>
             </View>
@@ -160,69 +242,109 @@ export default function ArenaScreen() {
               />
             </View>
             <View style={styles.participantsTextContainer}>
-              <Text style={styles.participantName}>Elena Vance (MD) vs Marcus Reed</Text>
-              <Text style={styles.participantSub}>Boardroom Pressure Simulation</Text>
+              <Text style={styles.participantName}>{currentScenario.stakeholders}</Text>
+              <Text style={styles.participantSub}>High-Stakes Arena Dilemma</Text>
             </View>
           </View>
 
           {/* Narrative text */}
-          <Text style={styles.narrativeBody}>
-            Marcus just presented your 6-month growth thesis as his own initiative to the Managing Committee. He turns to you with an easy smile and asks:{' '}
-            <Text style={styles.narrativeHighlight}>
-              “Elena, as lead researcher on this, do you agree with this direction?”
-            </Text>
-          </Text>
+          <Text style={styles.narrativeBody}>{currentScenario.narrative}</Text>
+
+          <View style={styles.dilemmaBox}>
+            <AppIcon name="help_outline" size={14} color={colors.primary} />
+            <Text style={styles.dilemmaText}>{currentScenario.question}</Text>
+          </View>
         </View>
 
         {/* 3 Interactive Response Cards */}
         <View style={styles.optionsSection}>
           <Text style={styles.optionsSectionTitle}>SELECT TACTICAL RESPONSE</Text>
 
-          {ARENA_OPTIONS.map((opt) => {
-            const isSelected = selectedKey === opt.key;
+          {currentScenario.options.map((opt) => {
+            const isSelected = selectedKey === opt.id;
             return (
               <Pressable
-                key={opt.key}
-                onPress={() => handleSelectOption(opt.key)}
+                key={opt.id}
+                onPress={() => handleSelectOption(opt.id)}
                 style={[
                   styles.optionCard,
                   isSelected && styles.optionCardSelected,
                 ]}
               >
                 <View style={styles.optionTopRow}>
-                  <View style={styles.optionKeyCircle}>
-                    <Text style={styles.optionKeyText}>{opt.key}</Text>
+                  <View
+                    style={[
+                      styles.optionKeyCircle,
+                      isSelected && styles.optionKeyCircleSelected,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.optionKeyText,
+                        isSelected && styles.optionKeyTextSelected,
+                      ]}
+                    >
+                      {opt.id}
+                    </Text>
                   </View>
-                  <Text style={styles.optionCode}>{opt.code}</Text>
+
+                  <View style={styles.optionTagBox}>
+                    <Text style={styles.optionRiskTag}>{opt.riskTag}</Text>
+                    {opt.isRecommended && (
+                      <View style={styles.recommendedBadge}>
+                        <AppIcon name="bolt" size={9} color={colors.primary} />
+                        <Text style={styles.recommendedText}>OPTIMAL FRAME</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
 
-                <Text style={styles.optionTitle}>{opt.title}</Text>
-                <Text style={styles.optionDesc}>{opt.desc}</Text>
+                <Text style={styles.optionTitle}>{opt.label}</Text>
+                <Text style={styles.optionQuote}>{opt.quote}</Text>
 
                 <View style={styles.optionPostureRow}>
-                  <Text style={styles.postureDesc}>{opt.posture}</Text>
+                  <Text style={styles.postureDesc}>{opt.tacticalEffect}</Text>
                 </View>
               </Pressable>
             );
           })}
         </View>
 
-        {/* Tactical Simulation Forecast Bar */}
+        {/* Dynamic Tactical Simulation Forecast Bar */}
         <View style={styles.forecastBar}>
-          <View style={styles.forecastLeft}>
-            <AppIcon name="bolt" size={15} color={colors.primary} />
-            <Text style={styles.forecastText}>Simulation Reward Forecast</Text>
+          <View style={styles.forecastHeaderRow}>
+            <View style={styles.forecastLeft}>
+              <AppIcon name="bolt" size={15} color={colors.primary} />
+              <Text style={styles.forecastText}>Tactical Simulation Forecast</Text>
+            </View>
+            <Text style={styles.forecastXp}>+{selectedOption.expReward} EXP</Text>
           </View>
-          <Text style={styles.forecastXp}>+42 EXP</Text>
+
+          <Text style={styles.forecastOutcome}>{selectedOption.forecast}</Text>
+
+          {selectedOption.traitDeltas && (
+            <View style={styles.traitDeltaRow}>
+              <Text style={styles.traitDeltaText}>
+                {formatTraitDeltas(selectedOption.traitDeltas)}
+              </Text>
+            </View>
+          )}
         </View>
 
-        {/* Execute Button */}
+        {/* Action Button: Execute or Next Room */}
         {isLockedIn ? (
-          <View style={styles.lockedInBanner}>
-            <AppIcon name="shield" size={16} color={colors.onSecondaryContainer} />
-            <Text style={styles.lockedInText}>
-              PROTOCOL LOCKED • STATUS PRESERVED (+42 EXP)
-            </Text>
+          <View style={styles.lockedContainer}>
+            <View style={styles.lockedInBanner}>
+              <AppIcon name="shield" size={16} color={colors.onSecondaryContainer} />
+              <Text style={styles.lockedInText}>
+                PROTOCOL EXECUTED • {selectedOption.expReward} EXP SECURED
+              </Text>
+            </View>
+
+            <Pressable onPress={handleNextRoom} style={styles.nextRoomBtn}>
+              <Text style={styles.nextRoomBtnText}>Next Simulation Room</Text>
+              <AppIcon name="arrow_forward" size={16} color={colors.onPrimary} />
+            </Pressable>
           </View>
         ) : (
           <Pressable
@@ -265,8 +387,56 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 18,
+    paddingTop: 14,
+    paddingBottom: 120,
+    gap: 16,
+  },
+  roomSelectorRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingVertical: 2,
+  },
+  roomPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 9999,
+    backgroundColor: colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+  },
+  roomPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  roomPillPro: {
+    borderColor: 'rgba(242, 202, 80, 0.4)',
+  },
+  roomPillText: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    color: colors.onSurfaceVariant,
+    letterSpacing: 0.8,
+  },
+  roomPillTextActive: {
+    fontFamily: fonts.labelSemiBold,
+    color: colors.onPrimary,
+  },
+  proTagSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: 'rgba(242, 202, 80, 0.15)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  proTagSmallText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 9,
+    color: colors.primary,
   },
   topBanner: {
     backgroundColor: colors.surfaceContainerLow,
@@ -373,6 +543,7 @@ const styles = StyleSheet.create({
   },
   participantsTextContainer: {
     gap: 2,
+    flex: 1,
   },
   participantName: {
     fontFamily: fonts.bodySemiBold,
@@ -390,10 +561,22 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     lineHeight: 20,
   },
-  narrativeHighlight: {
-    fontFamily: fonts.headlineMedium,
-    fontStyle: 'italic',
+  dilemmaBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: 10,
+    padding: 10,
+  },
+  dilemmaText: {
+    flex: 1,
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 11,
     color: colors.onSurface,
+    lineHeight: 16,
   },
   optionsSection: {
     gap: 10,
@@ -436,24 +619,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  optionKeyCircleSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
   optionKeyText: {
     fontFamily: fonts.labelSemiBold,
     fontSize: 11,
     color: colors.primary,
   },
-  optionCode: {
+  optionKeyTextSelected: {
+    color: colors.onPrimary,
+  },
+  optionTagBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  optionRiskTag: {
     fontFamily: fonts.label,
     fontSize: 9,
     color: colors.primary,
     letterSpacing: 0.8,
+  },
+  recommendedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(242, 202, 80, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  recommendedText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 8,
+    color: colors.primary,
   },
   optionTitle: {
     fontFamily: fonts.headlineMedium,
     fontSize: 15,
     color: colors.onSurface,
   },
-  optionDesc: {
+  optionQuote: {
     fontFamily: fonts.body,
+    fontStyle: 'italic',
     fontSize: 12,
     color: colors.onSurfaceVariant,
     lineHeight: 18,
@@ -468,17 +679,20 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     fontSize: 9,
     color: colors.outline,
+    lineHeight: 14,
   },
   forecastBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     backgroundColor: colors.surfaceContainerLowest,
     borderWidth: 1,
     borderColor: colors.outlineVariant,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    padding: 14,
+    gap: 6,
+  },
+  forecastHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   forecastLeft: {
     flexDirection: 'row',
@@ -494,6 +708,60 @@ const styles = StyleSheet.create({
     fontFamily: fonts.labelSemiBold,
     fontSize: 12,
     color: colors.primary,
+  },
+  forecastOutcome: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 10,
+    color: colors.primary,
+    letterSpacing: 0.6,
+  },
+  traitDeltaRow: {
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: colors.outlineVariant,
+  },
+  traitDeltaText: {
+    fontFamily: fonts.label,
+    fontSize: 9,
+    color: colors.onSurfaceVariant,
+    letterSpacing: 0.5,
+  },
+  lockedContainer: {
+    gap: 10,
+  },
+  lockedInBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.secondaryContainer,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  lockedInText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 11,
+    color: colors.onSecondaryContainer,
+    letterSpacing: 0.8,
+  },
+  nextRoomBtn: {
+    height: 50,
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  nextRoomBtnText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 12,
+    color: colors.onPrimary,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   executeBtn: {
     height: 52,
@@ -517,23 +785,5 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
     letterSpacing: 1,
     textTransform: 'uppercase',
-  },
-  lockedInBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.secondaryContainer,
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  lockedInText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 11,
-    color: colors.onSecondaryContainer,
-    letterSpacing: 1,
   },
 });
