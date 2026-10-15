@@ -15,9 +15,13 @@ export const CharacterStatsSchema = z.object({
 
 export type CharacterStats = Record<TraitKey, number>;
 
-/**
- * Black Rule Codex Structure (Sprint 2 Specification)
- */
+export interface RuleQuiz {
+  question: string;
+  correctChoice: string;
+  incorrectChoice: string;
+  explanation: string;
+}
+
 export interface BlackRule {
   id: string;
   number: string;
@@ -38,6 +42,7 @@ export interface BlackRule {
   imageUrl: string;
   pixelVariant?: 'chess' | 'shield' | 'scale' | 'eye' | 'crown' | 'key';
   realLifeExample?: string;
+  quiz?: RuleQuiz;
 }
 
 /**

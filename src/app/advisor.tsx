@@ -6,6 +6,8 @@ import {
   ScrollView,
   TextInput,
   Pressable,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -129,12 +131,16 @@ export default function AdvisorModalScreen() {
         </Pressable>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         {/* Usage Pill */}
         <View style={styles.usageRow}>
           <Text style={styles.usageText}>
@@ -273,8 +279,9 @@ export default function AdvisorModalScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
-  );
+    </KeyboardAvoidingView>
+  </View>
+);
 }
 
 const styles = StyleSheet.create({

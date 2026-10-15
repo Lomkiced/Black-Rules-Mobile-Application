@@ -36,12 +36,20 @@ interface UserStoreState {
   operativeName: string;
   operativeEmail: string;
 
+  // Daily Focus & Preferences
+  selectedFocus: 'boundaries' | 'negotiation' | 'calm' | 'presence';
+  hapticsEnabled: boolean;
+  reminderTime: string;
+
   // Hydration & Toast Engine
   hasHydrated: boolean;
   currentDrillIndex: number;
   lastToastMessage: string | null;
 
   // Actions
+  setSelectedFocus: (focus: 'boundaries' | 'negotiation' | 'calm' | 'presence') => void;
+  toggleHaptics: () => void;
+  cycleReminderTime: () => void;
   setHasHydrated: (hydrated: boolean) => void;
   updateOperativeName: (name: string) => void;
   nextDailyDrill: () => void;
@@ -100,6 +108,9 @@ export const useUserStore = create<UserStoreState>()(
       hasCompletedDiagnostic: false,
       operativeName: 'Elena Vance',
       operativeEmail: 'strategist@blackrules.io',
+      selectedFocus: 'calm',
+      hapticsEnabled: true,
+      reminderTime: '8:00 AM',
 
       hasHydrated: false,
       currentDrillIndex: 0,
@@ -114,6 +125,16 @@ export const useUserStore = create<UserStoreState>()(
       completedScenarioIds: [],
 
       archiveSearch: '',
+
+      setSelectedFocus: (focus) => set({ selectedFocus: focus }),
+      toggleHaptics: () => set((state) => ({ hapticsEnabled: !state.hapticsEnabled })),
+      cycleReminderTime: () =>
+        set((state) => {
+          const times = ['8:00 AM', '12:00 PM', '8:00 PM', 'Off'];
+          const currentIdx = times.indexOf(state.reminderTime);
+          const nextIdx = (currentIdx + 1) % times.length;
+          return { reminderTime: times[nextIdx] };
+        }),
 
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
 
@@ -353,6 +374,9 @@ export const useUserStore = create<UserStoreState>()(
         bookmarkedRuleIds: state.bookmarkedRuleIds,
         masteredRuleIds: state.masteredRuleIds,
         completedScenarioIds: state.completedScenarioIds,
+        selectedFocus: state.selectedFocus,
+        hapticsEnabled: state.hapticsEnabled,
+        reminderTime: state.reminderTime,
       }),
     }
   )

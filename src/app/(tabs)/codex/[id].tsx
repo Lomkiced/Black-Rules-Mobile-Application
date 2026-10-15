@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,15 @@ import {
   Pressable,
   Share,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { AppIcon } from '../../../components/ui/AppIcon';
 import { PixelArtBanner } from '../../../components/ui/PixelArtBanner';
-import { colors, fonts } from '../../../theme/tokens';
+import { fonts } from '../../../theme/tokens';
 import { useUserStore } from '../../../store/useUserStore';
-import { BLACK_RULES } from '../../../store/mockData';
+import { BLACK_RULES, getQuizForRule } from '../../../store/mockData';
 
 type RuleTab = 'The Rule' | 'Why It Works' | 'How to Use It';
 
@@ -31,6 +32,8 @@ export default function CodexReaderScreen() {
     masteredRuleIds,
     toggleBookmarkedRule,
     toggleMasteredRule,
+    hapticsEnabled,
+    setToast,
   } = useUserStore();
 
   const initialIndex = BLACK_RULES.findIndex(
@@ -45,10 +48,19 @@ export default function CodexReaderScreen() {
   const isMastered = masteredRuleIds.includes(currentRule.id);
 
   const [activeTab, setActiveTab] = useState<RuleTab>('The Rule');
+  const [quizAnswer, setQuizAnswer] = useState<'correct' | 'incorrect' | null>(null);
+
+  const quiz = getQuizForRule(currentRule.id);
 
   const handleShare = async () => {
+    if (hapticsEnabled) {
+      try {
+        Haptics.selectionAsync();
+      } catch {
+        // safe fallback
+      }
+    }
     try {
-      Haptics.selectionAsync();
       await Share.share({
         message: `BLACK RULE #${currentRule.number}: ${currentRule.title}.\n${currentRule.summary}\n\n#BlackRules`,
       });
@@ -58,21 +70,26 @@ export default function CodexReaderScreen() {
   };
 
   const handlePrevRule = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {
-      // safe fallback
+    if (hapticsEnabled) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {
+        // safe fallback
+      }
     }
     const prevIndex = (currentIndex - 1 + BLACK_RULES.length) % BLACK_RULES.length;
     setCurrentIndex(prevIndex);
     setActiveTab('The Rule');
+    setQuizAnswer(null);
   };
 
   const handleNextRule = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {
-      // safe fallback
+    if (hapticsEnabled) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {
+        // safe fallback
+      }
     }
     const nextIndex = (currentIndex + 1) % BLACK_RULES.length;
     const nextRule = BLACK_RULES[nextIndex];
@@ -84,6 +101,33 @@ export default function CodexReaderScreen() {
 
     setCurrentIndex(nextIndex);
     setActiveTab('The Rule');
+    setQuizAnswer(null);
+  };
+
+  const handleSelectQuizAnswer = (choice: 'correct' | 'incorrect') => {
+    setQuizAnswer(choice);
+
+    if (choice === 'correct') {
+      if (hapticsEnabled) {
+        try {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch {
+          // safe fallback
+        }
+      }
+      if (!isMastered) {
+        toggleMasteredRule(currentRule.id);
+      }
+      setToast('CORRECT APPLICATION // +15 XP • RULE LEARNED');
+    } else {
+      if (hapticsEnabled) {
+        try {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        } catch {
+          // safe fallback
+        }
+      }
+    }
   };
 
   const bullets =
@@ -93,15 +137,27 @@ export default function CodexReaderScreen() {
       ? currentRule.psychBullets
       : currentRule.defenseBullets;
 
+  const progressPercent = ((currentIndex + 1) / BLACK_RULES.length) * 100;
+
   return (
     <View style={styles.root}>
+      {/* Top Thin Progress Bar */}
+      <View style={[styles.topProgressBarTrack, { top: insets.top }]}>
+        <View
+          style={[
+            styles.topProgressBarFill,
+            { width: `${progressPercent}%` },
+          ]}
+        />
+      </View>
+
       {/* Top Navigation Bar */}
       <View
         style={[
           styles.navBar,
           {
-            paddingTop: Math.max(insets.top, 12),
-            height: 56 + Math.max(insets.top, 12),
+            paddingTop: Math.max(insets.top + 6, 16),
+            height: 56 + Math.max(insets.top + 6, 16),
           },
         ]}
       >
@@ -109,28 +165,32 @@ export default function CodexReaderScreen() {
           onPress={() => router.back()}
           hitSlop={10}
           style={styles.iconBtn}
+          accessibilityLabel="Back"
         >
           <AppIcon name="arrow_back" size={20} color="#FAFAFA" />
         </Pressable>
 
         <View style={styles.rulePill}>
           <Text style={styles.rulePillText}>
-            RULE #{currentRule.number} OF 12
+            RULE {currentIndex + 1} OF {BLACK_RULES.length}
           </Text>
         </View>
 
         <View style={styles.navRight}>
           <Pressable
             onPress={() => {
-              try {
-                Haptics.selectionAsync();
-              } catch {
-                // fallback
+              if (hapticsEnabled) {
+                try {
+                  Haptics.selectionAsync();
+                } catch {
+                  // fallback
+                }
               }
               toggleBookmarkedRule(currentRule.id);
             }}
             hitSlop={8}
             style={styles.iconBtn}
+            accessibilityLabel="Bookmark"
           >
             <AppIcon
               name="bookmark"
@@ -139,7 +199,12 @@ export default function CodexReaderScreen() {
               filled={isBookmarked}
             />
           </Pressable>
-          <Pressable onPress={handleShare} hitSlop={8} style={styles.iconBtn}>
+          <Pressable
+            onPress={handleShare}
+            hitSlop={8}
+            style={styles.iconBtn}
+            accessibilityLabel="Share"
+          >
             <AppIcon name="share" size={19} color="#71717A" />
           </Pressable>
         </View>
@@ -168,7 +233,7 @@ export default function CodexReaderScreen() {
           <Text style={styles.summary}>{currentRule.summary}</Text>
         </View>
 
-        {/* 3 Clear Tabs */}
+        {/* 3 Clear Content Tabs */}
         <View style={styles.tabsRow}>
           {RULE_TABS.map((tab) => {
             const isSelected = activeTab === tab;
@@ -176,10 +241,12 @@ export default function CodexReaderScreen() {
               <Pressable
                 key={tab}
                 onPress={() => {
-                  try {
-                    Haptics.selectionAsync();
-                  } catch {
-                    // fallback
+                  if (hapticsEnabled) {
+                    try {
+                      Haptics.selectionAsync();
+                    } catch {
+                      // fallback
+                    }
                   }
                   setActiveTab(tab);
                 }}
@@ -201,25 +268,29 @@ export default function CodexReaderScreen() {
           })}
         </View>
 
-        {/* Tactical Bullet List */}
-        <View style={styles.bulletBox}>
+        {/* Animated Tactical Bullet List */}
+        <Animated.View
+          key={`${currentRule.id}-${activeTab}`}
+          entering={FadeInDown.duration(200)}
+          style={styles.bulletBox}
+        >
           {bullets.map((bullet, idx) => (
             <View key={idx} style={styles.bulletRow}>
               <View style={styles.pixelDot} />
               <Text style={styles.bulletText}>{bullet}</Text>
             </View>
           ))}
-        </View>
+        </Animated.View>
 
         {/* Real-Life Example Box */}
         {currentRule.realLifeExample && (
           <View style={styles.exampleBox}>
-            <Text style={styles.exampleLabel}>REAL-LIFE EXAMPLE</Text>
+            <Text style={styles.exampleLabel}>REAL-LIFE SCENARIO</Text>
             <Text style={styles.exampleText}>{currentRule.realLifeExample}</Text>
           </View>
         )}
 
-        {/* Quote Monolith */}
+        {/* Quote Box */}
         <View style={styles.quoteBox}>
           <View style={styles.quoteBar} />
           <View style={styles.quoteContent}>
@@ -228,14 +299,116 @@ export default function CodexReaderScreen() {
           </View>
         </View>
 
+        {/* Interactive "Quick Takeaway Check" Card */}
+        <View style={styles.quizCard}>
+          <View style={styles.quizHeaderRow}>
+            <View style={styles.quizBadge}>
+              <Text style={styles.quizBadgeText}>QUICK CHECK // APPLY THIS RULE</Text>
+            </View>
+            <View style={styles.quizXpBadge}>
+              <Text style={styles.quizXpText}>+15 XP</Text>
+            </View>
+          </View>
+
+          <Text style={styles.quizQuestion}>{quiz.question}</Text>
+
+          <View style={styles.quizChoices}>
+            {/* Option 1: Correct Application */}
+            <Pressable
+              onPress={() => handleSelectQuizAnswer('correct')}
+              style={[
+                styles.quizChoiceBtn,
+                quizAnswer === 'correct' && styles.quizChoiceCorrect,
+              ]}
+            >
+              <View
+                style={[
+                  styles.choiceIndicator,
+                  quizAnswer === 'correct' && styles.choiceIndicatorCorrect,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.choiceIndicatorText,
+                    quizAnswer === 'correct' && styles.choiceIndicatorTextActive,
+                  ]}
+                >
+                  A
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.choiceText,
+                  quizAnswer === 'correct' && styles.choiceTextActive,
+                ]}
+              >
+                {quiz.correctChoice}
+              </Text>
+            </Pressable>
+
+            {/* Option 2: Common Mistake */}
+            <Pressable
+              onPress={() => handleSelectQuizAnswer('incorrect')}
+              style={[
+                styles.quizChoiceBtn,
+                quizAnswer === 'incorrect' && styles.quizChoiceIncorrect,
+              ]}
+            >
+              <View
+                style={[
+                  styles.choiceIndicator,
+                  quizAnswer === 'incorrect' && styles.choiceIndicatorIncorrect,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.choiceIndicatorText,
+                    quizAnswer === 'incorrect' && styles.choiceIndicatorTextActive,
+                  ]}
+                >
+                  B
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.choiceText,
+                  quizAnswer === 'incorrect' && styles.choiceTextActive,
+                ]}
+              >
+                {quiz.incorrectChoice}
+              </Text>
+            </Pressable>
+          </View>
+
+          {quizAnswer !== null && (
+            <View
+              style={[
+                styles.quizFeedbackBox,
+                quizAnswer === 'correct'
+                  ? styles.feedbackCorrect
+                  : styles.feedbackIncorrect,
+              ]}
+            >
+              <Text style={styles.feedbackTitle}>
+                {quizAnswer === 'correct'
+                  ? 'EXACT APPLICATION ✓'
+                  : 'COMMON PITFALL ✗'}
+              </Text>
+              <Text style={styles.feedbackText}>{quiz.explanation}</Text>
+            </View>
+          )}
+        </View>
+
         {/* Action Controls: Save & Mark as Learned */}
         <View style={styles.actionsRow}>
           <Pressable
             onPress={() => {
-              try {
-                Haptics.selectionAsync();
-              } catch {
-                // fallback
+              if (hapticsEnabled) {
+                try {
+                  Haptics.selectionAsync();
+                } catch {
+                  // fallback
+                }
               }
               toggleBookmarkedRule(currentRule.id);
             }}
@@ -257,10 +430,12 @@ export default function CodexReaderScreen() {
 
           <Pressable
             onPress={() => {
-              try {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              } catch {
-                // fallback
+              if (hapticsEnabled) {
+                try {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                } catch {
+                  // fallback
+                }
               }
               toggleMasteredRule(currentRule.id);
             }}
@@ -306,6 +481,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#09090B',
   },
+  topProgressBarTrack: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: '#18181B',
+    zIndex: 99,
+  },
+  topProgressBarFill: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+  },
   navBar: {
     backgroundColor: 'rgba(9, 9, 11, 0.95)',
     borderBottomWidth: 1,
@@ -320,23 +507,23 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   rulePill: {
-    backgroundColor: '#121215',
+    backgroundColor: '#18181B',
     borderWidth: 1,
     borderColor: '#27272A',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 9999,
   },
   rulePillText: {
     fontFamily: fonts.label,
-    fontSize: 10,
+    fontSize: 9,
     color: '#FAFAFA',
-    letterSpacing: 0.8,
+    letterSpacing: 1,
   },
   navRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
   },
   scroll: {
     flex: 1,
@@ -365,39 +552,45 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 13,
     color: '#A1A1AA',
-    lineHeight: 20,
+    lineHeight: 19,
+    marginTop: 2,
   },
   tabsRow: {
     flexDirection: 'row',
     backgroundColor: '#121215',
-    borderRadius: 10,
-    padding: 3,
     borderWidth: 1,
     borderColor: '#27272A',
+    borderRadius: 10,
+    padding: 3,
+    gap: 3,
   },
   tabItem: {
     flex: 1,
     paddingVertical: 8,
     alignItems: 'center',
-    borderRadius: 8,
+    justifyContent: 'center',
+    borderRadius: 7,
   },
   tabItemActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#3F3F46',
   },
   tabItemText: {
     fontFamily: fonts.label,
     fontSize: 10,
     color: '#71717A',
+    letterSpacing: 0.5,
   },
   tabItemTextActive: {
-    color: '#09090B',
     fontFamily: fonts.labelSemiBold,
+    color: '#FAFAFA',
   },
   bulletBox: {
     backgroundColor: '#121215',
     borderWidth: 1,
     borderColor: '#27272A',
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 16,
     gap: 12,
   },
@@ -407,26 +600,26 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   pixelDot: {
-    width: 5,
-    height: 5,
+    width: 6,
+    height: 6,
     backgroundColor: '#FFFFFF',
-    borderRadius: 1,
     marginTop: 6,
+    borderRadius: 1,
   },
   bulletText: {
-    flex: 1,
     fontFamily: fonts.body,
     fontSize: 13,
-    color: '#FAFAFA',
-    lineHeight: 20,
+    color: '#D4D4D8',
+    lineHeight: 19,
+    flex: 1,
   },
   exampleBox: {
     backgroundColor: '#121215',
     borderWidth: 1,
     borderColor: '#27272A',
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 16,
-    gap: 6,
+    gap: 8,
   },
   exampleLabel: {
     fontFamily: fonts.label,
@@ -436,42 +629,171 @@ const styles = StyleSheet.create({
   },
   exampleText: {
     fontFamily: fonts.body,
-    fontSize: 13,
-    color: '#D4D4D8',
-    lineHeight: 19,
+    fontSize: 12,
+    color: '#A1A1AA',
+    lineHeight: 18,
   },
   quoteBox: {
     flexDirection: 'row',
-    backgroundColor: '#050507',
-    borderRadius: 12,
+    backgroundColor: '#121215',
     borderWidth: 1,
     borderColor: '#27272A',
-    overflow: 'hidden',
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
   },
   quoteBar: {
     width: 3,
     backgroundColor: '#FFFFFF',
+    borderRadius: 2,
   },
   quoteContent: {
     flex: 1,
-    padding: 14,
     gap: 6,
   },
   quoteText: {
     fontFamily: fonts.display,
-    fontStyle: 'italic',
-    fontSize: 13,
+    fontSize: 14,
     color: '#FAFAFA',
-    lineHeight: 19,
+    lineHeight: 20,
+    fontStyle: 'italic',
   },
   quoteAuthor: {
     fontFamily: fonts.label,
     fontSize: 10,
     color: '#71717A',
   },
+  quizCard: {
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 14,
+    padding: 16,
+    gap: 12,
+  },
+  quizHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  quizBadge: {
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#3F3F46',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  quizBadgeText: {
+    fontFamily: fonts.label,
+    fontSize: 8,
+    color: '#FAFAFA',
+    letterSpacing: 0.8,
+  },
+  quizXpBadge: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  quizXpText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 9,
+    color: '#09090B',
+  },
+  quizQuestion: {
+    fontFamily: fonts.headlineMedium,
+    fontSize: 13,
+    color: '#FAFAFA',
+    lineHeight: 18,
+  },
+  quizChoices: {
+    gap: 8,
+  },
+  quizChoiceBtn: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 10,
+    padding: 12,
+  },
+  quizChoiceCorrect: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
+  },
+  quizChoiceIncorrect: {
+    borderColor: '#EF4444',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+  },
+  choiceIndicator: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#52525B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  choiceIndicatorCorrect: {
+    backgroundColor: '#09090B',
+    borderColor: '#09090B',
+  },
+  choiceIndicatorIncorrect: {
+    backgroundColor: '#EF4444',
+    borderColor: '#EF4444',
+  },
+  choiceIndicatorText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 9,
+    color: '#A1A1AA',
+  },
+  choiceIndicatorTextActive: {
+    color: '#FFFFFF',
+  },
+  choiceText: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: '#A1A1AA',
+    lineHeight: 17,
+    flex: 1,
+  },
+  choiceTextActive: {
+    color: '#09090B',
+    fontFamily: fonts.headlineMedium,
+  },
+  quizFeedbackBox: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    gap: 4,
+  },
+  feedbackCorrect: {
+    backgroundColor: '#18181B',
+    borderColor: '#52525B',
+  },
+  feedbackIncorrect: {
+    backgroundColor: 'rgba(239, 68, 68, 0.06)',
+    borderColor: '#7F1D1D',
+  },
+  feedbackTitle: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 9,
+    color: '#FAFAFA',
+    letterSpacing: 0.8,
+  },
+  feedbackText: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: '#A1A1AA',
+    lineHeight: 15,
+  },
   actionsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   actionBtnSecondary: {
     flex: 1,
@@ -479,25 +801,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#121215',
     borderWidth: 1,
     borderColor: '#27272A',
-    borderRadius: 12,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
   actionBtnSecondaryActive: {
-    borderColor: '#71717A',
+    borderColor: '#52525B',
   },
   actionBtnSecondaryText: {
     fontFamily: fonts.label,
     fontSize: 11,
-    color: '#FAFAFA',
+    color: '#A1A1AA',
+    letterSpacing: 0.5,
   },
   actionBtnPrimary: {
     flex: 1,
     height: 48,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -512,6 +835,8 @@ const styles = StyleSheet.create({
     fontFamily: fonts.labelSemiBold,
     fontSize: 11,
     color: '#09090B',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   actionBtnPrimaryDoneText: {
     color: '#FAFAFA',
@@ -519,7 +844,6 @@ const styles = StyleSheet.create({
   navigationRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingTop: 8,
   },
   navStepBtn: {
@@ -529,7 +853,6 @@ const styles = StyleSheet.create({
   navStepText: {
     fontFamily: fonts.label,
     fontSize: 11,
-    color: '#A1A1AA',
-    letterSpacing: 0.6,
+    color: '#71717A',
   },
 });

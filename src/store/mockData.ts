@@ -1,4 +1,4 @@
-import { BlackRule, CharacterStats, ArenaScenario, Curriculum, DailyDrill } from '../types';
+import { BlackRule, CharacterStats, ArenaScenario, Curriculum, DailyDrill, RuleQuiz } from '../types';
 
 export const INITIAL_STATS: CharacterStats = {
   stoicism: 75,
@@ -765,3 +765,93 @@ export const DAILY_DRILLS: DailyDrill[] = [
 // Backwards compatibility aliases
 export const MOCK_RULES = BLACK_RULES;
 export const MOCK_SCENARIOS = ARENA_SCENARIOS;
+
+/**
+ * Interactive Knowledge Quizzes for all 12 Black Rules
+ */
+export const RULE_QUIZZES: Record<string, RuleQuiz> = {
+  '01': {
+    question: 'A hostile colleague confronts you in a hallway demanding an immediate answer on a project deadline.',
+    correctChoice: 'Breathe, wait 3 full seconds in silence, then respond in a calm tone.',
+    incorrectChoice: 'Defend yourself immediately so they do not think you are weak.',
+    explanation: 'Pausing breaks their momentum, forces them to fill the silence, and prevents emotional slips.',
+  },
+  '02': {
+    question: 'You decide to decline an invitation to an optional networking dinner.',
+    correctChoice: 'Send a 1-sentence note: "I have a conflict tonight and cannot attend."',
+    incorrectChoice: 'Write a long paragraph explaining your heavy workload and doctor visit.',
+    explanation: 'Over-explaining invites debate and sounds apologetic. Brief clarity commands respect.',
+  },
+  '03': {
+    question: 'Someone makes a sarcastic joke about your presentation during a department meeting.',
+    correctChoice: 'Maintain steady eye contact in silence, then ask: "What did you mean by that?"',
+    incorrectChoice: 'Fire back with an angry sarcastic insult to protect your reputation.',
+    explanation: 'Mirroring their hostility pulls you into their frame. A calm, direct question exposes their motive.',
+  },
+  '04': {
+    question: 'A client stops replying after you sent your detailed proposal two days ago.',
+    correctChoice: 'Hold your position, focus on other priorities, and follow up once with high value next week.',
+    incorrectChoice: 'Send 3 urgent messages asking if they liked the proposal and offering a discount.',
+    explanation: 'Chasing broadcasts desperation and kills your leverage. Scarcity and calm restraint create value.',
+  },
+  '05': {
+    question: 'A furious client raises their voice over a delayed shipment.',
+    correctChoice: 'Lower your voice, slow your pace, and state the exact next action to resolve it.',
+    incorrectChoice: 'Match their volume and yell back that the delay was not your fault.',
+    explanation: 'Anger feeds on friction. When you speak softly and deliberately, the other person is forced to de-escalate.',
+  },
+  '06': {
+    question: 'A teammate asks if you can "quickly help" with their overdue task during your deep focus block.',
+    correctChoice: '"I am locked into a deadline right now. Let us touch base at 4:00 PM."',
+    incorrectChoice: 'Drop everything immediately to help them so they do not think you are selfish.',
+    explanation: 'If you do not value your own schedule, nobody else will. Deferring non-emergencies protects your output.',
+  },
+  '07': {
+    question: 'A business partner promises big sales numbers but repeatedly delays signing the partnership agreement.',
+    correctChoice: 'Judge them by the unsigned agreement and withhold key resources until they act.',
+    incorrectChoice: 'Believe their passionate verbal promises and deliver the work upfront.',
+    explanation: 'Words cost nothing. Real intent is measured solely by concrete behavioral commitments.',
+  },
+  '08': {
+    question: 'You are secretly planning to interview for a competitor or launch a side venture.',
+    correctChoice: 'Keep your work steady, speak normally, and execute quietly behind the scenes.',
+    incorrectChoice: 'Hint around the office water cooler that big changes are coming soon.',
+    explanation: 'Premature announcements invite sabotage, jealousy, and counter-moves. Move in silence.',
+  },
+  '09': {
+    question: 'A peer insists their software architecture idea is better than yours during a heated debate.',
+    correctChoice: 'Build a working prototype that demonstrates undeniable efficiency metrics.',
+    incorrectChoice: 'Argue for an hour in the meeting room trying to verbally prove them wrong.',
+    explanation: 'You never truly persuade someone by embarrassing them in debate. Let tangible outcomes win.',
+  },
+  '10': {
+    question: 'A manager asks you to take on a weekend shift that is outside your agreed responsibilities.',
+    correctChoice: '"I will not be able to take that on this weekend, but I can look at Monday morning."',
+    incorrectChoice: '"I am so so sorry! I feel terrible, but I might have family plans if that is okay."',
+    explanation: 'Apologies make a reasonable refusal look like a transgression. A polite, firm "no" requires no apology.',
+  },
+  '11': {
+    question: 'A major commercial contract you worked on for weeks might fall through.',
+    correctChoice: 'Prepare alternative buyers and demonstrate that you are fully willing to walk away.',
+    incorrectChoice: 'Show extreme panic and offer drastic price cuts to save the deal at any cost.',
+    explanation: 'The party who cares least controls the negotiation. Emotional detachment preserves leverage.',
+  },
+  '12': {
+    question: 'You receive an unexpectedly large bonus or critical confidential company intel.',
+    correctChoice: 'Bank the resource, maintain a modest outward demeanor, and keep your advantage concealed.',
+    incorrectChoice: 'Immediately spend or broadcast your newfound power to impress your peers.',
+    explanation: 'Exposed reserves invite competitors and deplete your buffer. Hidden depth guarantees sovereignty.',
+  },
+};
+
+export const getQuizForRule = (ruleId: string): RuleQuiz => {
+  const cleanId = ruleId.replace('rule-', '').padStart(2, '0');
+  return (
+    RULE_QUIZZES[cleanId] || {
+      question: 'How do you apply this Black Rule in a high-pressure situation?',
+      correctChoice: 'Stay calm, evaluate incentives, and choose the calculated long-term move.',
+      incorrectChoice: 'React immediately based on impulse and emotional defensiveness.',
+      explanation: 'Sovereignty requires emotional restraint and deliberate strategic action over impulse.',
+    }
+  );
+};

@@ -5,9 +5,24 @@ import * as Haptics from 'expo-haptics';
 import { TopAppBar } from '../../components/ui/TopAppBar';
 import { AppIcon } from '../../components/ui/AppIcon';
 import { PixelArtBanner } from '../../components/ui/PixelArtBanner';
-import { colors, fonts } from '../../theme/tokens';
+import { fonts } from '../../theme/tokens';
 import { useUserStore } from '../../store/useUserStore';
-import { DAILY_DRILLS, CURRICULUMS } from '../../store/mockData';
+import { DAILY_DRILLS, CURRICULUMS, ARENA_SCENARIOS, BLACK_RULES } from '../../store/mockData';
+
+type FocusKey = 'calm' | 'negotiation' | 'boundaries' | 'presence';
+
+interface FocusPill {
+  key: FocusKey;
+  label: string;
+  icon: string;
+}
+
+const FOCUS_PILLS: FocusPill[] = [
+  { key: 'calm', label: 'Calm & Control', icon: 'self_improvement' },
+  { key: 'negotiation', label: 'Negotiation', icon: 'scale' },
+  { key: 'boundaries', label: 'Boundaries', icon: 'shield' },
+  { key: 'presence', label: 'Confidence', icon: 'military_tech' },
+];
 
 export default function DailyShadowScreen() {
   const router = useRouter();
@@ -23,60 +38,124 @@ export default function DailyShadowScreen() {
     curriculums,
     rules,
     masteredRuleIds,
+    selectedFocus = 'calm',
+    setSelectedFocus,
+    hapticsEnabled,
   } = useUserStore();
 
   const activeStreak = streak || streakCount || 14;
 
-  // Rule of the Day: first unmastered rule or Rule 01
-  const heroRule =
-    rules.find((r) => !masteredRuleIds.includes(r.id)) ||
-    rules[0];
+  // Dynamic Time-of-Day Greeting
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const firstName = operativeName ? operativeName.trim().split(' ')[0] : 'Strategist';
 
+  // Dynamic Rule & Scenario based on Selected Focus
+  const allRules = rules && rules.length > 0 ? rules : BLACK_RULES;
+  const allScenarios = ARENA_SCENARIOS;
+
+  const getRecommendedData = () => {
+    switch (selectedFocus) {
+      case 'negotiation': {
+        const rule = allRules.find((r) => r.id === '01' || r.id === '12') || allRules[0];
+        const scenario = allScenarios.find((s) => s.id === 'scenario-02') || allScenarios[1];
+        return { rule, scenario, focusTitle: 'Smart Negotiation' };
+      }
+      case 'boundaries': {
+        const rule = allRules.find((r) => r.id === '02' || r.id === '06') || allRules[1];
+        const scenario = allScenarios.find((s) => s.id === 'scenario-03') || allScenarios[2];
+        return { rule, scenario, focusTitle: 'Respect & Boundaries' };
+      }
+      case 'presence': {
+        const rule = allRules.find((r) => r.id === '07' || r.id === '08') || allRules[3];
+        const scenario = allScenarios.find((s) => s.id === 'scenario-01') || allScenarios[0];
+        return { rule, scenario, focusTitle: 'Confidence & Presence' };
+      }
+      case 'calm':
+      default: {
+        const rule = allRules.find((r) => r.id === '03' || r.id === '05') || allRules[2];
+        const scenario = allScenarios.find((s) => s.id === 'scenario-04') || allScenarios[3];
+        return { rule, scenario, focusTitle: 'Calm Under Pressure' };
+      }
+    }
+  };
+
+  const { rule: heroRule, scenario: recommendedScenario, focusTitle } = getRecommendedData();
   const isHeroMastered = masteredRuleIds.includes(heroRule.id);
 
   // Today's Daily Habit
   const safeDrillIndex = Math.abs(currentDrillIndex || 0) % DAILY_DRILLS.length;
   const currentDrill = DAILY_DRILLS[safeDrillIndex] || DAILY_DRILLS[0];
 
-  // Categories list
+  // Curriculums
   const activeCurriculums = curriculums && curriculums.length > 0 ? curriculums : CURRICULUMS;
 
+  const handleSelectFocus = (focus: FocusKey) => {
+    if (hapticsEnabled) {
+      try {
+        Haptics.selectionAsync();
+      } catch {
+        // safe fallback
+      }
+    }
+    setSelectedFocus(focus);
+  };
+
   const handleToggleHabit = () => {
-    try {
-      Haptics.notificationAsync(
-        isChallengeCompleted
-          ? Haptics.NotificationFeedbackType.Warning
-          : Haptics.NotificationFeedbackType.Success
-      );
-    } catch {
-      // safe fallback
+    if (hapticsEnabled) {
+      try {
+        Haptics.notificationAsync(
+          isChallengeCompleted
+            ? Haptics.NotificationFeedbackType.Warning
+            : Haptics.NotificationFeedbackType.Success
+        );
+      } catch {
+        // safe fallback
+      }
     }
     toggleChallenge();
   };
 
   const handleNextHabit = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {
-      // safe fallback
+    if (hapticsEnabled) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {
+        // safe fallback
+      }
     }
     nextDailyDrill();
   };
 
   const handleRulePress = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {
-      // safe fallback
+    if (hapticsEnabled) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {
+        // safe fallback
+      }
     }
     router.push(`/(tabs)/codex/${heroRule.id}` as any);
   };
 
+  const handlePracticeScenario = () => {
+    if (hapticsEnabled) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } catch {
+        // safe fallback
+      }
+    }
+    router.push('/(tabs)/arena' as any);
+  };
+
   const handleViewAllRules = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {
-      // safe fallback
+    if (hapticsEnabled) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {
+        // safe fallback
+      }
     }
     router.push('/(tabs)/codex' as any);
   };
@@ -95,12 +174,12 @@ export default function DailyShadowScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Greeting & Streak */}
+        {/* Dynamic Time-of-Day Header */}
         <View style={styles.greetingRow}>
           <View>
             <Text style={styles.greetingSub}>DAILY OVERVIEW</Text>
             <Text style={styles.greetingTitle}>
-              Hello, {operativeName ? operativeName.split(' ')[0] : 'Strategist'}
+              {greeting}, {firstName}
             </Text>
           </View>
 
@@ -110,9 +189,51 @@ export default function DailyShadowScreen() {
           </View>
         </View>
 
+        {/* Interactive "Today's Focus" Selector */}
+        <View style={styles.focusSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>TODAY'S FOCUS</Text>
+            <Text style={styles.focusActiveTag}>{focusTitle.toUpperCase()}</Text>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.focusPillsRow}
+          >
+            {FOCUS_PILLS.map((pill) => {
+              const isActive = selectedFocus === pill.key;
+              return (
+                <Pressable
+                  key={pill.key}
+                  onPress={() => handleSelectFocus(pill.key)}
+                  style={[
+                    styles.focusPill,
+                    isActive && styles.focusPillActive,
+                  ]}
+                  accessibilityRole="button"
+                >
+                  <AppIcon
+                    name={pill.icon}
+                    size={14}
+                    color={isActive ? '#09090B' : '#A1A1AA'}
+                  />
+                  <Text
+                    style={[
+                      styles.focusPillText,
+                      isActive && styles.focusPillTextActive,
+                    ]}
+                  >
+                    {pill.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
         {/* Rule of the Day Card */}
         <View style={styles.ruleCard}>
-          {/* Pixel Art Banner */}
           <PixelArtBanner
             variant={heroRule.pixelVariant || 'shield'}
             height={130}
@@ -132,7 +253,9 @@ export default function DailyShadowScreen() {
             </View>
 
             <Text style={styles.ruleTitle}>{heroRule.title}</Text>
-            <Text style={styles.ruleSummary}>{heroRule.summary}</Text>
+            <Text style={styles.ruleSummary} numberOfLines={2}>
+              {heroRule.summary}
+            </Text>
 
             {/* Crisp White Read Button */}
             <Pressable
@@ -141,11 +264,39 @@ export default function DailyShadowScreen() {
               accessibilityRole="button"
             >
               <Text style={styles.readButtonText}>
-                {isHeroMastered ? 'Review Rule (2 min) →' : 'Read Full Rule (2 min) →'}
+                {isHeroMastered ? 'Review Rule (2 min) →' : 'Read Rule (2 min) →'}
               </Text>
             </Pressable>
           </View>
         </View>
+
+        {/* Quick Jump to Recommended Practice Card */}
+        <Pressable
+          onPress={handlePracticeScenario}
+          style={styles.scenarioCard}
+          accessibilityRole="button"
+        >
+          <View style={styles.scenarioCardHeader}>
+            <View style={styles.scenarioBadge}>
+              <Text style={styles.scenarioBadgeText}>ARENA PRACTICE</Text>
+            </View>
+            <Text style={styles.scenarioStars}>★★★★☆</Text>
+          </View>
+
+          <View style={styles.scenarioContent}>
+            <Text style={styles.scenarioTitle}>
+              Practice Today: {recommendedScenario.title}
+            </Text>
+            <Text style={styles.scenarioContext} numberOfLines={2}>
+              {recommendedScenario.narrative}
+            </Text>
+          </View>
+
+          <View style={styles.scenarioFooter}>
+            <Text style={styles.scenarioCtaText}>Start Practice Dilemma →</Text>
+            <AppIcon name="arrow_forward" size={14} color="#09090B" />
+          </View>
+        </Pressable>
 
         {/* Today's Daily Habit Card */}
         <View style={styles.habitSection}>
@@ -156,7 +307,7 @@ export default function DailyShadowScreen() {
               style={styles.nextHabitBtn}
               accessibilityRole="button"
             >
-              <Text style={styles.nextHabitText}>Next Habit ↻</Text>
+              <Text style={styles.nextHabitText}>New Habit ↻</Text>
             </Pressable>
           </View>
 
@@ -208,8 +359,7 @@ export default function DailyShadowScreen() {
 
           <View style={styles.categoriesList}>
             {activeCurriculums.map((curr) => {
-              // Calculate learned count for this curriculum
-              const categoryRules = rules.filter((r) =>
+              const categoryRules = allRules.filter((r) =>
                 r.category.toUpperCase().includes(curr.tag.toUpperCase()) ||
                 curr.title.toUpperCase().includes(r.category.toUpperCase())
               );
@@ -233,7 +383,6 @@ export default function DailyShadowScreen() {
                     </Text>
                   </View>
 
-                  {/* Progress Bar */}
                   <View style={styles.progressTrack}>
                     <View
                       style={[
@@ -299,16 +448,54 @@ const styles = StyleSheet.create({
     color: '#FAFAFA',
     letterSpacing: 0.5,
   },
+  focusSection: {
+    gap: 10,
+  },
+  focusActiveTag: {
+    fontFamily: fonts.label,
+    fontSize: 9,
+    color: '#A1A1AA',
+    letterSpacing: 0.8,
+  },
+  focusPillsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingRight: 8,
+  },
+  focusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  focusPillActive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
+  },
+  focusPillText: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    color: '#A1A1AA',
+  },
+  focusPillTextActive: {
+    fontFamily: fonts.labelSemiBold,
+    color: '#09090B',
+  },
   ruleCard: {
     backgroundColor: '#121215',
     borderWidth: 1,
     borderColor: '#27272A',
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
   },
   ruleCardBody: {
-    padding: 18,
-    gap: 12,
+    padding: 16,
+    gap: 8,
   },
   ruleMetaRow: {
     flexDirection: 'row',
@@ -317,49 +504,111 @@ const styles = StyleSheet.create({
   },
   ruleCode: {
     fontFamily: fonts.label,
-    fontSize: 10,
-    color: '#A1A1AA',
+    fontSize: 9,
+    color: '#71717A',
     letterSpacing: 1,
   },
   masteredBadge: {
-    backgroundColor: '#27272A',
-    borderRadius: 6,
-    paddingHorizontal: 8,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#3F3F46',
+    paddingHorizontal: 6,
     paddingVertical: 2,
+    borderRadius: 4,
   },
   masteredBadgeText: {
     fontFamily: fonts.label,
-    fontSize: 9,
+    fontSize: 8,
     color: '#FAFAFA',
   },
   ruleTitle: {
-    fontFamily: fonts.display,
-    fontSize: 20,
+    fontFamily: fonts.headlineMedium,
+    fontSize: 18,
     color: '#FAFAFA',
-    lineHeight: 26,
   },
   ruleSummary: {
     fontFamily: fonts.body,
-    fontSize: 13,
+    fontSize: 12,
     color: '#A1A1AA',
-    lineHeight: 19,
+    lineHeight: 18,
   },
   readButton: {
+    height: 44,
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    height: 46,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
+    marginTop: 6,
   },
   readButtonText: {
     fontFamily: fonts.labelSemiBold,
     fontSize: 12,
     color: '#09090B',
     letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  scenarioCard: {
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 14,
+    padding: 16,
+    gap: 10,
+  },
+  scenarioCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  scenarioBadge: {
+    backgroundColor: '#27272A',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  scenarioBadgeText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 8,
+    color: '#FAFAFA',
+    letterSpacing: 0.8,
+  },
+  scenarioStars: {
+    color: '#A1A1AA',
+    fontSize: 11,
+    letterSpacing: 1,
+  },
+  scenarioContent: {
+    gap: 4,
+  },
+  scenarioTitle: {
+    fontFamily: fonts.headlineMedium,
+    fontSize: 14,
+    color: '#FAFAFA',
+  },
+  scenarioContext: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: '#A1A1AA',
+    lineHeight: 16,
+  },
+  scenarioFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  scenarioCtaText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 11,
+    color: '#09090B',
+    letterSpacing: 0.5,
   },
   habitSection: {
-    gap: 10,
+    gap: 12,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -373,34 +622,35 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
   nextHabitBtn: {
-    paddingVertical: 2,
+    paddingVertical: 4,
     paddingHorizontal: 6,
   },
   nextHabitText: {
     fontFamily: fonts.label,
-    fontSize: 11,
-    color: '#FAFAFA',
+    fontSize: 10,
+    color: '#A1A1AA',
   },
   habitCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     backgroundColor: '#121215',
     borderWidth: 1,
     borderColor: '#27272A',
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
+    gap: 14,
   },
   habitCardCompleted: {
-    backgroundColor: '#18181B',
     borderColor: '#3F3F46',
+    backgroundColor: '#0D0D10',
   },
   checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: '#71717A',
+    borderColor: '#52525B',
+    backgroundColor: '#18181B',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -411,7 +661,7 @@ const styles = StyleSheet.create({
   },
   habitContent: {
     flex: 1,
-    gap: 6,
+    gap: 4,
   },
   habitMetaRow: {
     flexDirection: 'row',
@@ -421,43 +671,42 @@ const styles = StyleSheet.create({
   habitTag: {
     fontFamily: fonts.label,
     fontSize: 9,
-    color: '#A1A1AA',
+    color: '#71717A',
     letterSpacing: 0.8,
   },
   habitReward: {
     fontFamily: fonts.labelSemiBold,
     fontSize: 9,
-    color: '#FFFFFF',
+    color: '#FAFAFA',
   },
   habitText: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.headlineMedium,
     fontSize: 13,
     color: '#FAFAFA',
-    lineHeight: 19,
+    lineHeight: 18,
   },
   habitTextCompleted: {
     color: '#71717A',
     textDecorationLine: 'line-through',
   },
   categoriesSection: {
-    gap: 10,
+    gap: 12,
   },
   viewAllText: {
     fontFamily: fonts.label,
-    fontSize: 11,
-    color: '#FAFAFA',
-    letterSpacing: 0.6,
+    fontSize: 10,
+    color: '#A1A1AA',
   },
   categoriesList: {
-    gap: 10,
+    gap: 8,
   },
   categoryCard: {
     backgroundColor: '#121215',
     borderWidth: 1,
     borderColor: '#27272A',
-    borderRadius: 14,
-    padding: 16,
-    gap: 12,
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
   },
   categoryTop: {
     flexDirection: 'row',
@@ -466,28 +715,29 @@ const styles = StyleSheet.create({
   },
   categoryTitle: {
     fontFamily: fonts.headlineMedium,
-    fontSize: 15,
+    fontSize: 13,
     color: '#FAFAFA',
   },
   categorySub: {
     fontFamily: fonts.body,
-    fontSize: 12,
-    color: '#A1A1AA',
+    fontSize: 11,
+    color: '#71717A',
     marginTop: 2,
   },
   categoryProgressText: {
     fontFamily: fonts.label,
-    fontSize: 10,
-    color: '#71717A',
+    fontSize: 9,
+    color: '#A1A1AA',
   },
   progressTrack: {
     height: 3,
-    backgroundColor: '#050507',
+    backgroundColor: '#27272A',
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: '#FFFFFF',
+    borderRadius: 2,
   },
 });

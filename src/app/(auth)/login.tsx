@@ -6,6 +6,8 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -13,13 +15,13 @@ import * as Haptics from 'expo-haptics';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { BMonogram } from '../../components/ui/BMonogram';
 import { LoadingDots } from '../../components/ui/LoadingOverlay';
-import { colors, fonts } from '../../theme/tokens';
+import { fonts } from '../../theme/tokens';
 import { useUserStore } from '../../store/useUserStore';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { loginOperative, hasCompletedDiagnostic } = useUserStore();
+  const { loginOperative, hasCompletedDiagnostic, hapticsEnabled } = useUserStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,21 +30,41 @@ export default function LoginScreen() {
   const [isGuestLoading, setIsGuestLoading] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSignIn = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch {
-      // safe fallback
+    if (!email.trim()) {
+      if (hapticsEnabled) {
+        try {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        } catch {
+          // safe fallback
+        }
+      }
+      setErrorMessage('Please enter your email to sign in, or tap Continue as Guest below.');
+      return;
     }
-    setIsLoading(true);
-    setTimeout(() => {
-      loginOperative(email.trim() || 'user@blackrules.io');
-      setIsLoading(false);
+
+    setErrorMessage(null);
+
+    if (hapticsEnabled) {
       try {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       } catch {
         // safe fallback
+      }
+    }
+
+    setIsLoading(true);
+    setTimeout(() => {
+      loginOperative(email.trim());
+      setIsLoading(false);
+      if (hapticsEnabled) {
+        try {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch {
+          // safe fallback
+        }
       }
       if (hasCompletedDiagnostic) {
         router.replace('/(tabs)');
@@ -53,10 +75,12 @@ export default function LoginScreen() {
   };
 
   const handleContinueAsGuest = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {
-      // safe fallback
+    if (hapticsEnabled) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {
+        // safe fallback
+      }
     }
     setIsGuestLoading(true);
     setTimeout(() => {
@@ -72,108 +96,134 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.root}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: Math.max(insets.top + 24, 36),
-            paddingBottom: Math.max(insets.bottom + 20, 28),
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
-        {/* Brand Monogram & Header */}
-        <View style={styles.header}>
-          <BMonogram size={56} />
-          <Text style={styles.title}>Welcome to Black Rules</Text>
-          <Text style={styles.subtitle}>
-            Sign in to save your daily streak, mastered rules, and character progress.
-          </Text>
-        </View>
-
-        {/* Input Form */}
-        <View style={styles.form}>
-          {/* Email Input */}
-          <View style={[styles.inputContainer, emailFocused && styles.inputFocused]}>
-            <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              placeholderTextColor="#71717A"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              style={styles.input}
-              onFocus={() => setEmailFocused(true)}
-              onBlur={() => setEmailFocused(false)}
-            />
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingTop: Math.max(insets.top + 24, 36),
+              paddingBottom: Math.max(insets.bottom + 20, 28),
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Brand Monogram & Header */}
+          <View style={styles.header}>
+            <BMonogram size={56} />
+            <Text style={styles.title}>Welcome to Black Rules</Text>
+            <Text style={styles.subtitle}>
+              Sign in to save your daily streak, mastered rules, and character progress.
+            </Text>
           </View>
 
-          {/* Password Input */}
-          <View style={[styles.inputContainer, passwordFocused && styles.inputFocused]}>
-            <Text style={styles.inputLabel}>PASSWORD</Text>
-            <View style={styles.passwordRow}>
+          {/* Inline Validation Error Banner */}
+          {errorMessage && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          )}
+
+          {/* Input Form */}
+          <View style={styles.form}>
+            {/* Email Input */}
+            <View
+              style={[
+                styles.inputContainer,
+                emailFocused && styles.inputFocused,
+                errorMessage && styles.inputError,
+              ]}
+            >
+              <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
               <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Enter your password"
+                value={email}
+                onChangeText={(val) => {
+                  setEmail(val);
+                  if (errorMessage) setErrorMessage(null);
+                }}
+                placeholder="you@example.com"
                 placeholderTextColor="#71717A"
-                secureTextEntry={!showPassword}
-                style={[styles.input, { flex: 1 }]}
-                onFocus={() => setPasswordFocused(true)}
-                onBlur={() => setPasswordFocused(false)}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                style={styles.input}
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
               />
-              <Pressable
-                onPress={() => setShowPassword(!showPassword)}
-                hitSlop={8}
-                style={styles.eyeBtn}
-              >
-                {showPassword ? (
-                  <EyeOff size={18} color="#71717A" />
-                ) : (
-                  <Eye size={18} color="#71717A" />
-                )}
-              </Pressable>
+            </View>
+
+            {/* Password Input */}
+            <View
+              style={[
+                styles.inputContainer,
+                passwordFocused && styles.inputFocused,
+              ]}
+            >
+              <Text style={styles.inputLabel}>PASSWORD</Text>
+              <View style={styles.passwordRow}>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Enter your password"
+                  placeholderTextColor="#71717A"
+                  secureTextEntry={!showPassword}
+                  style={[styles.input, { flex: 1 }]}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
+                />
+                <Pressable
+                  onPress={() => setShowPassword(!showPassword)}
+                  hitSlop={8}
+                  style={styles.eyeBtn}
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} color="#71717A" />
+                  ) : (
+                    <Eye size={18} color="#71717A" />
+                  )}
+                </Pressable>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Actions */}
-        <View style={styles.actions}>
-          {/* Primary Crisp White Sign In Button */}
-          <Pressable
-            onPress={handleSignIn}
-            disabled={isLoading || isGuestLoading}
-            style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
-          >
-            {isLoading ? (
-              <LoadingDots size={6} color="#09090B" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Sign In</Text>
-            )}
-          </Pressable>
+          {/* Actions */}
+          <View style={styles.actions}>
+            {/* Primary Crisp White Sign In Button */}
+            <Pressable
+              onPress={handleSignIn}
+              disabled={isLoading || isGuestLoading}
+              style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+            >
+              {isLoading ? (
+                <LoadingDots size={6} color="#09090B" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Sign In</Text>
+              )}
+            </Pressable>
 
-          {/* Prominent Continue as Guest Button */}
-          <Pressable
-            onPress={handleContinueAsGuest}
-            disabled={isLoading || isGuestLoading}
-            style={styles.guestButton}
-          >
-            {isGuestLoading ? (
-              <LoadingDots size={6} color="#FAFAFA" />
-            ) : (
-              <Text style={styles.guestButtonText}>Continue as Guest →</Text>
-            )}
-          </Pressable>
-        </View>
+            {/* Prominent Continue as Guest Button */}
+            <Pressable
+              onPress={handleContinueAsGuest}
+              disabled={isLoading || isGuestLoading}
+              style={styles.guestButton}
+            >
+              {isGuestLoading ? (
+                <LoadingDots size={6} color="#FAFAFA" />
+              ) : (
+                <Text style={styles.guestButtonText}>Continue as Guest →</Text>
+              )}
+            </Pressable>
+          </View>
 
-        {/* Privacy Note */}
-        <Text style={styles.footerNote}>
-          Your progress is stored privately on your device.
-        </Text>
-      </ScrollView>
+          {/* Privacy Note */}
+          <Text style={styles.footerNote}>
+            Your progress is stored privately on your device.
+          </Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -211,6 +261,21 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     paddingHorizontal: 12,
   },
+  errorBanner: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: '#7F1D1D',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  errorText: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: '#EF4444',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
   form: {
     gap: 14,
     marginTop: 8,
@@ -226,6 +291,9 @@ const styles = StyleSheet.create({
   inputFocused: {
     borderColor: '#FFFFFF',
     backgroundColor: '#18181B',
+  },
+  inputError: {
+    borderColor: '#EF4444',
   },
   inputLabel: {
     fontFamily: fonts.label,

@@ -7,7 +7,7 @@ import {
   Pressable,
   TextInput,
   Alert,
-  ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,8 +16,6 @@ import { AppIcon } from '../components/ui/AppIcon';
 import { fonts } from '../theme/tokens';
 import { useUserStore } from '../store/useUserStore';
 import { BLACK_RULES } from '../store/mockData';
-import { syncUserProgressToCloud } from '../lib/supabase';
-import { addBreadcrumb, getBreadcrumbs } from '../lib/sentry';
 
 export default function ProfileModalScreen() {
   const insets = useSafeAreaInsets();
@@ -26,26 +24,26 @@ export default function ProfileModalScreen() {
   const {
     isPro,
     xp,
-    levelTier,
     streak,
     masteredRuleIds,
     bookmarkedRuleIds,
-    stats,
     operativeName,
     operativeEmail,
+    selectedFocus,
+    hapticsEnabled,
+    reminderTime,
     updateOperativeName,
+    toggleHaptics,
+    cycleReminderTime,
     logoutAndResetFlow,
+    resetProgress,
     rules,
     setToast,
   } = useUserStore();
 
   const [name, setName] = useState(operativeName);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [showTelemetryLog, setShowTelemetryLog] = useState(false);
-  const [telemetryLogs, setTelemetryLogs] = useState<string[]>([]);
 
   const allRules = rules && rules.length > 0 ? rules : BLACK_RULES;
-
   const bookmarkedRules = allRules.filter((r) =>
     bookmarkedRuleIds.includes(r.id)
   );
@@ -56,78 +54,109 @@ export default function ProfileModalScreen() {
   };
 
   const handleBookmarkPress = (ruleId: string) => {
-    try {
-      Haptics.selectionAsync();
-    } catch {
-      // safe fallback
+    if (hapticsEnabled) {
+      try {
+        Haptics.selectionAsync();
+      } catch {
+        // safe fallback
+      }
     }
     router.back();
     setTimeout(() => {
-      router.push(`/(tabs)/codex/${ruleId}`);
+      router.push(`/(tabs)/codex/${ruleId}` as any);
     }, 150);
   };
 
-  const handleSyncCloud = async () => {
-    try {
-      Haptics.selectionAsync();
-    } catch {
-      // safe fallback
-    }
-    setIsSyncing(true);
-    addBreadcrumb('cloud_sync', `Manual sync initiated by ${operativeName}`);
-
-    try {
-      const result = await syncUserProgressToCloud({
-        isPro,
-        xp,
-        streak,
-        stats,
-        masteredRuleIds,
-        bookmarkedRuleIds,
-        operativeName: name,
-        operativeEmail,
-      });
-
-      setIsSyncing(false);
-      if (result.mode === 'cloud') {
-        setToast('SYNC COMPLETE // SUPABASE CLOUD ACTIVE');
-      } else {
-        setToast('LOCAL-FIRST ACTIVE // CLOUD STANDBY');
+  const handleToggleHaptics = () => {
+    toggleHaptics();
+    if (!hapticsEnabled) {
+      // It will turn ON
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch {
+        // safe fallback
       }
-    } catch {
-      setIsSyncing(false);
-      setToast('LOCAL STORAGE VERIFIED // CACHE SECURE');
     }
   };
 
-  const handleToggleTelemetry = () => {
-    const crumbs = getBreadcrumbs().map(
-      (b) => `[${b.category.toUpperCase()}] ${b.message}`
+  const handleCycleReminder = () => {
+    if (hapticsEnabled) {
+      try {
+        Haptics.selectionAsync();
+      } catch {
+        // safe fallback
+      }
+    }
+    cycleReminderTime();
+  };
+
+  const handleReplayIntro = () => {
+    if (hapticsEnabled) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {
+        // safe fallback
+      }
+    }
+    logoutAndResetFlow();
+    router.replace('/(onboarding)/welcome' as any);
+  };
+
+  const handleSignOut = () => {
+    if (hapticsEnabled) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } catch {
+        // safe fallback
+      }
+    }
+    router.replace('/(auth)/login' as any);
+  };
+
+  const handleResetProgress = () => {
+    if (hapticsEnabled) {
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      } catch {
+        // safe fallback
+      }
+    }
+
+    Alert.alert(
+      'Reset All Progress',
+      'Are you sure you want to reset your XP, streaks, and learned rules to default values? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset Progress',
+          style: 'destructive',
+          onPress: () => {
+            resetProgress();
+            setToast('PROGRESS RESET TO DEFAULT');
+          },
+        },
+      ]
     );
-    setTelemetryLogs(crumbs);
-    setShowTelemetryLog((prev) => !prev);
   };
 
   const handleDeleteAccount = () => {
-    try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    } catch {
-      // safe fallback
+    if (hapticsEnabled) {
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      } catch {
+        // safe fallback
+      }
     }
 
     Alert.alert(
       'Delete Account & Erase All Data',
-      'This will permanently wipe your streak, mastered rules, character telemetry, and cloud credentials from this device. This action is irreversible.',
+      'This will permanently wipe your profile, streak, mastered rules, and saved preferences from this device. This action is irreversible.',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete & Erase Data',
           style: 'destructive',
           onPress: () => {
-            addBreadcrumb('compliance', 'User account erased (App Store mandated)');
             logoutAndResetFlow();
             setToast('DATA ERASED // SESSION RESET');
             router.replace('/(onboarding)/welcome' as any);
@@ -137,21 +166,11 @@ export default function ProfileModalScreen() {
     );
   };
 
-  const handleLogoutReplay = () => {
-    try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    } catch {
-      // safe fallback
-    }
-    logoutAndResetFlow();
-    router.replace('/(onboarding)/welcome' as any);
-  };
-
   const initial = (name || 'E').trim().charAt(0).toUpperCase();
 
   return (
     <View style={styles.root}>
-      {/* Top Header */}
+      {/* Top Navigation Bar */}
       <View
         style={[
           styles.header,
@@ -161,14 +180,15 @@ export default function ProfileModalScreen() {
         ]}
       >
         <View style={styles.headerTitleGroup}>
-          <Text style={styles.headerCode}>PROFILE // DOSSIER FILE</Text>
-          <Text style={styles.headerMainTitle}>Account & Bookmarks</Text>
+          <Text style={styles.headerCode}>ACCOUNT // SETTINGS</Text>
+          <Text style={styles.headerMainTitle}>Account & Preferences</Text>
         </View>
 
         <Pressable
           onPress={() => router.back()}
           style={styles.closeBtn}
           hitSlop={10}
+          accessibilityLabel="Close"
         >
           <AppIcon name="close" size={18} color="#FAFAFA" />
         </Pressable>
@@ -177,9 +197,10 @@ export default function ProfileModalScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Identity Card */}
+        {/* Profile Header Card */}
         <View style={styles.identityCard}>
           <View style={styles.avatarRow}>
             <View style={styles.avatarFrame}>
@@ -195,14 +216,24 @@ export default function ProfileModalScreen() {
                   placeholderTextColor="#71717A"
                   style={styles.nameInput}
                 />
-                <AppIcon name="tune" size={14} color="#71717A" />
+                <AppIcon name="edit" size={14} color="#71717A" />
               </View>
 
-              <Text style={styles.emailText}>{operativeEmail}</Text>
+              <Text style={styles.emailText}>{operativeEmail || 'user@blackrules.io'}</Text>
 
-              <View style={styles.clearanceBadge}>
-                <Text style={styles.clearanceBadgeText}>
-                  {isPro ? 'TIER SOVEREIGN // PRO' : levelTier.toUpperCase()}
+              <View
+                style={[
+                  styles.clearanceBadge,
+                  isPro && styles.clearanceBadgePro,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.clearanceBadgeText,
+                    isPro && styles.clearanceBadgeProText,
+                  ]}
+                >
+                  {isPro ? 'PRO MEMBER' : 'FREE PLAN'}
                 </Text>
               </View>
             </View>
@@ -217,7 +248,7 @@ export default function ProfileModalScreen() {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>MASTERED</Text>
+            <Text style={styles.statLabel}>LEARNED</Text>
             <Text style={styles.statValue}>{masteredRuleIds.length}/12</Text>
           </View>
           <View style={styles.statDivider} />
@@ -232,8 +263,38 @@ export default function ProfileModalScreen() {
           </View>
         </View>
 
-        {/* Saved Bookmarks Vault Section */}
-        <View style={styles.vaultSection}>
+        {/* Membership Banner (if !isPro) */}
+        {!isPro && (
+          <View style={styles.proBannerCard}>
+            <View style={styles.proBannerHeader}>
+              <View style={styles.proBadge}>
+                <Text style={styles.proBadgeText}>SOVEREIGN</Text>
+              </View>
+              <Text style={styles.proBannerTitle}>Upgrade to Black Rules Pro</Text>
+            </View>
+            <Text style={styles.proBannerDesc}>
+              Unlock all 12 rules, unlimited practice scenarios, and instant AI Coach consultations.
+            </Text>
+            <Pressable
+              onPress={() => {
+                if (hapticsEnabled) {
+                  try {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  } catch {
+                    // safe fallback
+                  }
+                }
+                router.push('/paywall');
+              }}
+              style={styles.proBannerBtn}
+            >
+              <Text style={styles.proBannerBtnText}>Unlock Pro Pass →</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Saved Rules Section */}
+        <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionLabel}>SAVED RULES</Text>
             <Text style={styles.sectionCount}>
@@ -243,9 +304,9 @@ export default function ProfileModalScreen() {
 
           {bookmarkedRules.length === 0 ? (
             <View style={styles.emptyVaultBox}>
-              <AppIcon name="bookmark" size={20} color="#3F3F46" />
+              <AppIcon name="bookmark" size={20} color="#52525B" />
               <Text style={styles.emptyVaultText}>
-                No rules bookmarked yet. Tap the bookmark icon on any rule to save it here.
+                No rules bookmarked yet. Tap the bookmark icon on any rule card to save it here for quick access.
               </Text>
             </View>
           ) : (
@@ -267,151 +328,132 @@ export default function ProfileModalScreen() {
           )}
         </View>
 
-        {/* Cloud & Startup Stack Status Card */}
-        <View style={styles.cloudCard}>
-          <View style={styles.cloudHeaderRow}>
-            <View style={styles.cloudHeaderLeft}>
-              <View style={styles.cloudPulseDot} />
-              <Text style={styles.cloudCardTitle}>STARTUP STACK & TELEMETRY</Text>
-            </View>
-            <View style={styles.cloudBadge}>
-              <Text style={styles.cloudBadgeText}>HYBRID ACTIVE</Text>
-            </View>
-          </View>
+        {/* App Preferences Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>APP PREFERENCES</Text>
 
-          <View style={styles.cloudGrid}>
-            <View style={styles.cloudGridItem}>
-              <Text style={styles.cloudGridLabel}>DATABASE / RLS</Text>
-              <Text style={styles.cloudGridValue}>Supabase Free Tier (pgvector)</Text>
+          <View style={styles.prefGroup}>
+            {/* Haptic Feedback Toggle Row */}
+            <View style={styles.prefRow}>
+              <View style={styles.prefLeft}>
+                <View style={styles.prefIconFrame}>
+                  <AppIcon name="vibration" size={16} color="#FAFAFA" />
+                </View>
+                <View style={styles.prefTextGroup}>
+                  <Text style={styles.prefTitle}>Haptic Feedback</Text>
+                  <Text style={styles.prefDesc}>Subtle vibration on taps and habit completion</Text>
+                </View>
+              </View>
+              <Switch
+                value={hapticsEnabled}
+                onValueChange={handleToggleHaptics}
+                trackColor={{ false: '#27272A', true: '#FAFAFA' }}
+                thumbColor={hapticsEnabled ? '#09090B' : '#71717A'}
+                ios_backgroundColor="#27272A"
+              />
             </View>
-            <View style={styles.cloudGridItem}>
-              <Text style={styles.cloudGridLabel}>AUTH & IDENTITY</Text>
-              <Text style={styles.cloudGridValue}>Clerk / Local-First Sovereign</Text>
-            </View>
-            <View style={styles.cloudGridItem}>
-              <Text style={styles.cloudGridLabel}>RATE LIMITING</Text>
-              <Text style={styles.cloudGridValue}>Upstash Serverless Redis HTTP</Text>
-            </View>
-            <View style={styles.cloudGridItem}>
-              <Text style={styles.cloudGridLabel}>AI VECTOR RAG</Text>
-              <Text style={styles.cloudGridValue}>Pinecone / Cosine Matcher</Text>
-            </View>
-          </View>
 
-          <View style={styles.cloudSyncRow}>
+            <View style={styles.prefDivider} />
+
+            {/* Daily Reminder Time Row */}
             <Pressable
-              onPress={handleSyncCloud}
-              disabled={isSyncing}
-              style={[styles.syncButton, isSyncing && styles.syncButtonDisabled]}
+              onPress={handleCycleReminder}
+              style={styles.prefRow}
             >
-              {isSyncing ? (
-                <ActivityIndicator size="small" color="#09090B" />
-              ) : (
-                <>
-                  <AppIcon name="cached" size={14} color="#09090B" />
-                  <Text style={styles.syncButtonText}>Sync Progress to Cloud Now</Text>
-                </>
-              )}
-            </Pressable>
-
-            <Pressable
-              onPress={handleToggleTelemetry}
-              style={styles.telemetryToggleBtn}
-            >
-              <AppIcon name="terminal" size={13} color="#A1A1AA" />
-              <Text style={styles.telemetryToggleText}>
-                {showTelemetryLog ? 'Hide Telemetry' : 'Diagnostics (Sentry)'}
-              </Text>
+              <View style={styles.prefLeft}>
+                <View style={styles.prefIconFrame}>
+                  <AppIcon name="alarm" size={16} color="#FAFAFA" />
+                </View>
+                <View style={styles.prefTextGroup}>
+                  <Text style={styles.prefTitle}>Daily Habit Reminder</Text>
+                  <Text style={styles.prefDesc}>Scheduled reminder for your daily rule habit</Text>
+                </View>
+              </View>
+              <View style={styles.reminderPill}>
+                <Text style={styles.reminderPillText}>{reminderTime}</Text>
+                <AppIcon name="unfold_more" size={13} color="#A1A1AA" />
+              </View>
             </Pressable>
           </View>
-
-          {showTelemetryLog && (
-            <View style={styles.telemetryConsole}>
-              <Text style={styles.telemetryHeader}>IN-MEMORY SENTRY RING BUFFER (LAST 20)</Text>
-              {telemetryLogs.length === 0 ? (
-                <Text style={styles.telemetryEmpty}>No events logged in buffer yet.</Text>
-              ) : (
-                telemetryLogs.map((log, idx) => (
-                  <Text key={idx} style={styles.telemetryLine}>
-                    {`> ${log}`}
-                  </Text>
-                ))
-              )}
-            </View>
-          )}
         </View>
 
-        {/* Command Controls */}
-        <View style={styles.controlsSection}>
-          <Text style={styles.sectionLabel}>CONTROLS & COMPLIANCE</Text>
+        {/* About & Legal Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>ABOUT & COMPLIANCE</Text>
 
-          {!isPro && (
+          <View style={styles.actionGroup}>
+            {/* Privacy Policy & Terms */}
             <Pressable
               onPress={() => {
-                try {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                } catch {
-                  // safe fallback
+                if (hapticsEnabled) {
+                  try {
+                    Haptics.selectionAsync();
+                  } catch {
+                    // safe fallback
+                  }
                 }
-                router.push('/paywall');
+                router.push('/legal' as any);
               }}
-              style={styles.proCtaBtn}
+              style={styles.actionRow}
             >
-              <Text style={styles.proCtaText}>Elevate to Sovereign Pro →</Text>
+              <View style={styles.actionLeft}>
+                <AppIcon name="verified_user" size={16} color="#A1A1AA" />
+                <Text style={styles.actionTitle}>Privacy Policy & Terms of Use</Text>
+              </View>
+              <AppIcon name="arrow_forward" size={14} color="#71717A" />
             </Pressable>
-          )}
 
-          <Pressable
-            onPress={() => {
-              try {
-                Haptics.selectionAsync();
-              } catch {
-                // safe fallback
-              }
-              router.push('/advisor');
-            }}
-            style={styles.advisorCtaBtn}
-          >
-            <Text style={styles.advisorCtaText}>Consult AI Coach →</Text>
-          </Pressable>
+            <View style={styles.actionDivider} />
 
-          {/* Privacy Policy & Terms Modal Route */}
-          <Pressable
-            onPress={() => {
-              try {
-                Haptics.selectionAsync();
-              } catch {
-                // safe fallback
-              }
-              router.push('/legal' as any);
-            }}
-            style={styles.legalBtn}
-          >
-            <View style={styles.legalBtnLeft}>
-              <AppIcon name="lock" size={14} color="#A1A1AA" />
-              <Text style={styles.legalBtnText}>Privacy Policy & Legal Terms</Text>
-            </View>
-            <AppIcon name="arrow_forward" size={14} color="#71717A" />
-          </Pressable>
+            {/* Replay App Walkthrough */}
+            <Pressable
+              onPress={handleReplayIntro}
+              style={styles.actionRow}
+            >
+              <View style={styles.actionLeft}>
+                <AppIcon name="play_arrow" size={16} color="#A1A1AA" />
+                <Text style={styles.actionTitle}>Replay App Introduction</Text>
+              </View>
+              <AppIcon name="arrow_forward" size={14} color="#71717A" />
+            </Pressable>
 
-          <Pressable
-            onPress={handleLogoutReplay}
-            style={styles.resetBtn}
-          >
-            <Text style={styles.resetBtnText}>
-              Reset Session & Replay Walkthrough
-            </Text>
-          </Pressable>
+            <View style={styles.actionDivider} />
 
-          {/* Apple App Store Mandatory: Delete Account & Erase All Data */}
+            {/* Sign Out */}
+            <Pressable
+              onPress={handleSignOut}
+              style={styles.actionRow}
+            >
+              <View style={styles.actionLeft}>
+                <AppIcon name="logout" size={16} color="#A1A1AA" />
+                <Text style={styles.actionTitle}>Sign Out</Text>
+              </View>
+              <AppIcon name="arrow_forward" size={14} color="#71717A" />
+            </Pressable>
+
+            <View style={styles.actionDivider} />
+
+            {/* Reset All Progress */}
+            <Pressable
+              onPress={handleResetProgress}
+              style={styles.actionRow}
+            >
+              <View style={styles.actionLeft}>
+                <AppIcon name="restart_alt" size={16} color="#F87171" />
+                <Text style={[styles.actionTitle, { color: '#F87171' }]}>
+                  Reset All Progress
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+
+          {/* Apple App Store Mandatory: Delete Account */}
           <Pressable
             onPress={handleDeleteAccount}
-            style={styles.deleteAccountBtn}
+            style={styles.deleteBtn}
           >
-            <AppIcon name="delete" size={13} color="#EF4444" />
-            <Text style={styles.deleteAccountBtnText}>
-              Delete Account & Erase All Data
-            </Text>
+            <AppIcon name="delete_forever" size={15} color="#EF4444" />
+            <Text style={styles.deleteBtnText}>Delete Account & Erase All Data</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -465,7 +507,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 48,
-    gap: 18,
+    gap: 20,
   },
   identityCard: {
     backgroundColor: '#121215',
@@ -491,7 +533,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontFamily: fonts.labelSemiBold,
-    fontSize: 18,
+    fontSize: 20,
     color: '#FAFAFA',
   },
   nameBlock: {
@@ -525,11 +567,19 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginTop: 4,
   },
+  clearanceBadgePro: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
+  },
   clearanceBadgeText: {
     fontFamily: fonts.label,
     fontSize: 9,
     color: '#A1A1AA',
     letterSpacing: 0.6,
+  },
+  clearanceBadgeProText: {
+    color: '#09090B',
+    fontFamily: fonts.labelSemiBold,
   },
   statsStrip: {
     flexDirection: 'row',
@@ -562,7 +612,56 @@ const styles = StyleSheet.create({
     height: 20,
     backgroundColor: '#27272A',
   },
-  vaultSection: {
+  proBannerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    gap: 10,
+  },
+  proBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  proBadge: {
+    backgroundColor: '#09090B',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  proBadgeText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 8,
+    color: '#FFFFFF',
+    letterSpacing: 0.8,
+  },
+  proBannerTitle: {
+    fontFamily: fonts.headlineMedium,
+    fontSize: 15,
+    color: '#09090B',
+  },
+  proBannerDesc: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: '#3F3F46',
+    lineHeight: 16,
+  },
+  proBannerBtn: {
+    height: 40,
+    backgroundColor: '#09090B',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  proBannerBtnText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 11,
+    color: '#FFFFFF',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  section: {
     gap: 10,
   },
   sectionHeaderRow: {
@@ -627,211 +726,104 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FAFAFA',
   },
-  controlsSection: {
-    gap: 10,
-  },
-  proCtaBtn: {
-    height: 48,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  proCtaText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 12,
-    color: '#09090B',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  advisorCtaBtn: {
-    height: 48,
-    backgroundColor: '#121215',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  advisorCtaText: {
-    fontFamily: fonts.label,
-    fontSize: 12,
-    color: '#FAFAFA',
-    letterSpacing: 0.6,
-  },
-  resetBtn: {
-    height: 46,
-    backgroundColor: 'rgba(248, 113, 113, 0.08)',
-    borderWidth: 1,
-    borderColor: '#450A0A',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  resetBtnText: {
-    fontFamily: fonts.label,
-    fontSize: 11,
-    color: '#F87171',
-    letterSpacing: 0.5,
-  },
-  cloudCard: {
+  prefGroup: {
     backgroundColor: '#121215',
     borderWidth: 1,
     borderColor: '#27272A',
     borderRadius: 14,
-    padding: 16,
-    gap: 14,
+    overflow: 'hidden',
   },
-  cloudHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cloudHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cloudPulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF',
-  },
-  cloudCardTitle: {
-    fontFamily: fonts.label,
-    fontSize: 10,
-    color: '#FAFAFA',
-    letterSpacing: 1,
-  },
-  cloudBadge: {
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  cloudBadgeText: {
-    fontFamily: fonts.label,
-    fontSize: 8,
-    color: '#A1A1AA',
-    letterSpacing: 0.5,
-  },
-  cloudGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  cloudGridItem: {
-    width: '48%',
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    borderRadius: 8,
-    padding: 10,
-    gap: 4,
-  },
-  cloudGridLabel: {
-    fontFamily: fonts.label,
-    fontSize: 8,
-    color: '#71717A',
-    letterSpacing: 0.6,
-  },
-  cloudGridValue: {
-    fontFamily: fonts.headlineMedium,
-    fontSize: 11,
-    color: '#FAFAFA',
-  },
-  cloudSyncRow: {
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'center',
-  },
-  syncButton: {
-    flex: 1,
-    height: 42,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  syncButtonDisabled: {
-    opacity: 0.6,
-  },
-  syncButtonText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 11,
-    color: '#09090B',
-    letterSpacing: 0.6,
-  },
-  telemetryToggleBtn: {
-    height: 42,
-    paddingHorizontal: 12,
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  telemetryToggleText: {
-    fontFamily: fonts.label,
-    fontSize: 10,
-    color: '#A1A1AA',
-  },
-  telemetryConsole: {
-    backgroundColor: '#050507',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    borderRadius: 8,
-    padding: 12,
-    gap: 6,
-  },
-  telemetryHeader: {
-    fontFamily: fonts.mono,
-    fontSize: 9,
-    color: '#71717A',
-    letterSpacing: 0.8,
-  },
-  telemetryEmpty: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: '#52525B',
-  },
-  telemetryLine: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: '#A1A1AA',
-    lineHeight: 14,
-  },
-  legalBtn: {
-    height: 46,
-    backgroundColor: '#121215',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    borderRadius: 10,
+  prefRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  legalBtnLeft: {
+  prefLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+    flex: 1,
+    paddingRight: 10,
   },
-  legalBtnText: {
+  prefIconFrame: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prefTextGroup: {
+    flex: 1,
+    gap: 2,
+  },
+  prefTitle: {
+    fontFamily: fonts.headlineMedium,
+    fontSize: 13,
+    color: '#FAFAFA',
+  },
+  prefDesc: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: '#71717A',
+    lineHeight: 14,
+  },
+  prefDivider: {
+    height: 1,
+    backgroundColor: '#27272A',
+    marginLeft: 60,
+  },
+  reminderPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  reminderPillText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 11,
+    color: '#FAFAFA',
+  },
+  actionGroup: {
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  actionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  actionTitle: {
     fontFamily: fonts.label,
     fontSize: 12,
     color: '#FAFAFA',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
-  deleteAccountBtn: {
+  actionDivider: {
+    height: 1,
+    backgroundColor: '#27272A',
+    marginLeft: 44,
+  },
+  deleteBtn: {
     height: 46,
     backgroundColor: 'rgba(239, 68, 68, 0.08)',
     borderWidth: 1,
@@ -841,9 +833,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 4,
+    marginTop: 6,
   },
-  deleteAccountBtnText: {
+  deleteBtnText: {
     fontFamily: fonts.labelSemiBold,
     fontSize: 11,
     color: '#EF4444',
