@@ -5,19 +5,15 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Image,
   TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { AppIcon } from '../components/ui/AppIcon';
-import { colors, fonts } from '../theme/tokens';
+import { fonts } from '../theme/tokens';
 import { useUserStore } from '../store/useUserStore';
 import { BLACK_RULES } from '../store/mockData';
-
-const AVATAR_URI =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCrGG84acRosCC5hZ-eL73H6Ptl9iHaPEf11DlKHKInScqxXhEFhGr8i9juFcJ7DB94XJHaeaxtvvOGqxATmJpa27fMA5cLBS4uk6ad6HrkmqlTHg3i1H1ttqwCJ5vKuU5GzZVvrH2wIlfG1By_lv4bMOAJKWkqCauXwPKMBnuCqiWcJvwHIWyFlkDXEMC5blfRMcecNVJfYeVVxmDDQ8pWpKzok8P7BICPAMVqQygiXIZ8nF6W-e6z2w';
 
 export default function ProfileModalScreen() {
   const insets = useSafeAreaInsets();
@@ -71,6 +67,8 @@ export default function ProfileModalScreen() {
     router.replace('/(onboarding)/welcome' as any);
   };
 
+  const initial = (operativeName || 'E').trim().charAt(0).toUpperCase();
+
   return (
     <View style={styles.root}>
       {/* Top Header */}
@@ -83,8 +81,8 @@ export default function ProfileModalScreen() {
         ]}
       >
         <View style={styles.headerTitleGroup}>
-          <Text style={styles.headerCode}>OPERATIVE DOSSIER // CLEARANCE FILE</Text>
-          <Text style={styles.headerMainTitle}>Security Dossier</Text>
+          <Text style={styles.headerCode}>PROFILE // DOSSIER FILE</Text>
+          <Text style={styles.headerMainTitle}>Account & Bookmarks</Text>
         </View>
 
         <Pressable
@@ -92,7 +90,7 @@ export default function ProfileModalScreen() {
           style={styles.closeBtn}
           hitSlop={10}
         >
-          <AppIcon name="close" size={20} color={colors.onSurface} />
+          <AppIcon name="close" size={18} color="#FAFAFA" />
         </Pressable>
       </View>
 
@@ -101,11 +99,11 @@ export default function ProfileModalScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Operative Identity Card */}
+        {/* Identity Card */}
         <View style={styles.identityCard}>
           <View style={styles.avatarRow}>
             <View style={styles.avatarFrame}>
-              <Image source={{ uri: AVATAR_URI }} style={styles.avatarImage} />
+              <Text style={styles.avatarText}>{initial}</Text>
             </View>
 
             <View style={styles.nameBlock}>
@@ -113,26 +111,16 @@ export default function ProfileModalScreen() {
                 <TextInput
                   value={name}
                   onChangeText={handleNameChange}
-                  placeholder="Operative Name"
-                  placeholderTextColor="#696459"
+                  placeholder="Your Name"
+                  placeholderTextColor="#71717A"
                   style={styles.nameInput}
                 />
-                <AppIcon name="tune" size={14} color={colors.outline} />
+                <AppIcon name="tune" size={14} color="#71717A" />
               </View>
 
               <Text style={styles.emailText}>{operativeEmail}</Text>
 
-              <View
-                style={[
-                  styles.clearanceBadge,
-                  isPro ? styles.clearanceBadgePro : styles.clearanceBadgeStandard,
-                ]}
-              >
-                <AppIcon
-                  name={isPro ? 'verified' : 'military_tech'}
-                  size={12}
-                  color={colors.primary}
-                />
+              <View style={styles.clearanceBadge}>
                 <Text style={styles.clearanceBadgeText}>
                   {isPro ? 'TIER SOVEREIGN // PRO' : levelTier.toUpperCase()}
                 </Text>
@@ -144,17 +132,17 @@ export default function ProfileModalScreen() {
         {/* Quick Stats Strip */}
         <View style={styles.statsStrip}>
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>EXPERIENCE</Text>
-            <Text style={styles.statValue}>{xp} XP</Text>
+            <Text style={styles.statLabel}>XP</Text>
+            <Text style={styles.statValue}>{xp.toLocaleString()}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statBox}>
             <Text style={styles.statLabel}>MASTERED</Text>
-            <Text style={styles.statValue}>{masteredRuleIds.length}/48</Text>
+            <Text style={styles.statValue}>{masteredRuleIds.length}/12</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>BOOKMARKED</Text>
+            <Text style={styles.statLabel}>SAVED</Text>
             <Text style={styles.statValue}>{bookmarkedRuleIds.length}</Text>
           </View>
           <View style={styles.statDivider} />
@@ -167,17 +155,17 @@ export default function ProfileModalScreen() {
         {/* Saved Bookmarks Vault Section */}
         <View style={styles.vaultSection}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionLabel}>SAVED AXIOMS // CODEX VAULT</Text>
+            <Text style={styles.sectionLabel}>SAVED RULES</Text>
             <Text style={styles.sectionCount}>
-              {bookmarkedRules.length} STORED
+              {bookmarkedRules.length} Bookmarked
             </Text>
           </View>
 
           {bookmarkedRules.length === 0 ? (
             <View style={styles.emptyVaultBox}>
-              <AppIcon name="bookmark" size={20} color={colors.outlineVariant} />
+              <AppIcon name="bookmark" size={20} color="#3F3F46" />
               <Text style={styles.emptyVaultText}>
-                No axioms bookmarked in Codex.
+                No rules bookmarked yet. Tap the bookmark icon on any rule to save it here.
               </Text>
             </View>
           ) : (
@@ -192,16 +180,16 @@ export default function ProfileModalScreen() {
                     <Text style={styles.ruleBadgeText}>RULE #{rule.number}</Text>
                     <Text style={styles.ruleTitleText}>{rule.title}</Text>
                   </View>
-                  <AppIcon name="arrow_forward" size={15} color={colors.primary} />
+                  <AppIcon name="arrow_forward" size={14} color="#FAFAFA" />
                 </Pressable>
               ))}
             </View>
           )}
         </View>
 
-        {/* Sovereign Command Controls */}
+        {/* Command Controls */}
         <View style={styles.controlsSection}>
-          <Text style={styles.sectionLabel}>COMMAND ACTIONS</Text>
+          <Text style={styles.sectionLabel}>ACTIONS</Text>
 
           {!isPro && (
             <Pressable
@@ -215,10 +203,7 @@ export default function ProfileModalScreen() {
               }}
               style={styles.proCtaBtn}
             >
-              <View style={styles.btnRow}>
-                <AppIcon name="bolt" size={16} color={colors.onPrimary} />
-                <Text style={styles.proCtaText}>Elevate to Sovereign Pro →</Text>
-              </View>
+              <Text style={styles.proCtaText}>Elevate to Sovereign Pro →</Text>
             </Pressable>
           )}
 
@@ -233,22 +218,16 @@ export default function ProfileModalScreen() {
             }}
             style={styles.advisorCtaBtn}
           >
-            <View style={styles.btnRow}>
-              <AppIcon name="psychology" size={16} color={colors.primary} />
-              <Text style={styles.advisorCtaText}>Consult AI Strategic Advisor →</Text>
-            </View>
+            <Text style={styles.advisorCtaText}>Consult AI Coach →</Text>
           </Pressable>
 
           <Pressable
             onPress={handleLogoutReplay}
             style={styles.resetBtn}
           >
-            <View style={styles.btnRow}>
-              <AppIcon name="lock" size={15} color="#FCA5A5" />
-              <Text style={styles.resetBtnText}>
-                Lock Vault & Replay Onboarding Walkthrough
-              </Text>
-            </View>
+            <Text style={styles.resetBtnText}>
+              Reset Session & Replay Walkthrough
+            </Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -259,7 +238,7 @@ export default function ProfileModalScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#09090B',
   },
   header: {
     flexDirection: 'row',
@@ -268,30 +247,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant,
-    backgroundColor: 'rgba(19, 19, 21, 0.95)',
+    borderBottomColor: '#27272A',
+    backgroundColor: 'rgba(9, 9, 11, 0.95)',
   },
   headerTitleGroup: {
-    gap: 3,
+    gap: 2,
   },
   headerCode: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.label,
     fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 1.6,
+    color: '#71717A',
+    letterSpacing: 1.2,
   },
   headerMainTitle: {
     fontFamily: fonts.display,
     fontSize: 20,
-    color: colors.onSurface,
+    color: '#FAFAFA',
   },
   closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceContainerLow,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: '#27272A',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -299,41 +278,41 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 48,
-    gap: 20,
+    gap: 18,
   },
   identityCard: {
-    backgroundColor: colors.surfaceContainerLow,
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 18,
+    borderColor: '#27272A',
+    borderRadius: 16,
     padding: 16,
   },
   avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
   },
   avatarFrame: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    overflow: 'hidden',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: '#3F3F46',
+    backgroundColor: '#18181B',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  avatarText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 18,
+    color: '#FAFAFA',
   },
   nameBlock: {
     flex: 1,
-    gap: 4,
+    gap: 3,
   },
   nameInputRow: {
     flexDirection: 'row',
@@ -343,47 +322,37 @@ const styles = StyleSheet.create({
   nameInput: {
     fontFamily: fonts.display,
     fontSize: 18,
-    color: colors.onSurface,
+    color: '#FAFAFA',
     paddingVertical: 0,
     flex: 1,
   },
   emailText: {
     fontFamily: fonts.body,
     fontSize: 12,
-    color: colors.onSurfaceVariant,
+    color: '#71717A',
   },
   clearanceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     alignSelf: 'flex-start',
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
     marginTop: 4,
   },
-  clearanceBadgePro: {
-    backgroundColor: 'rgba(242, 202, 80, 0.15)',
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  clearanceBadgeStandard: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
   clearanceBadgeText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.label,
     fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 0.8,
+    color: '#A1A1AA',
+    letterSpacing: 0.6,
   },
   statsStrip: {
     flexDirection: 'row',
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 14,
+    borderColor: '#27272A',
+    borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 8,
     alignItems: 'center',
@@ -394,23 +363,23 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.label,
     fontSize: 8,
-    color: colors.outline,
+    color: '#71717A',
     letterSpacing: 0.8,
   },
   statValue: {
     fontFamily: fonts.labelSemiBold,
-    fontSize: 12,
-    color: colors.primary,
+    fontSize: 13,
+    color: '#FAFAFA',
   },
   statDivider: {
     width: 1,
-    height: 24,
-    backgroundColor: colors.outlineVariant,
+    height: 20,
+    backgroundColor: '#27272A',
   },
   vaultSection: {
-    gap: 12,
+    gap: 10,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -418,110 +387,107 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.outline,
+    color: '#71717A',
     letterSpacing: 1.2,
   },
   sectionCount: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.label,
     fontSize: 9,
-    color: colors.primary,
+    color: '#A1A1AA',
   },
   emptyVaultBox: {
-    backgroundColor: colors.surfaceContainerLow,
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 14,
-    padding: 24,
+    borderColor: '#27272A',
+    borderRadius: 12,
+    padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   emptyVaultText: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.outline,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: '#71717A',
+    textAlign: 'center',
+    lineHeight: 18,
   },
   bookmarkList: {
-    gap: 10,
+    gap: 8,
   },
   bookmarkCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.surfaceContainerLow,
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 14,
+    borderColor: '#27272A',
+    borderRadius: 12,
     padding: 14,
   },
   bookmarkLeft: {
-    gap: 3,
+    gap: 2,
     flex: 1,
     paddingRight: 8,
   },
   ruleBadgeText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.label,
     fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 1,
+    color: '#71717A',
+    letterSpacing: 0.8,
   },
   ruleTitleText: {
     fontFamily: fonts.headlineMedium,
     fontSize: 14,
-    color: colors.onSurface,
+    color: '#FAFAFA',
   },
   controlsSection: {
-    gap: 12,
+    gap: 10,
   },
   proCtaBtn: {
-    height: 52,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  btnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
   proCtaText: {
     fontFamily: fonts.labelSemiBold,
     fontSize: 12,
-    color: colors.onPrimary,
-    letterSpacing: 1,
+    color: '#09090B',
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   advisorCtaBtn: {
-    height: 50,
-    backgroundColor: colors.surfaceContainerLow,
+    height: 48,
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: 'rgba(242, 202, 80, 0.4)',
-    borderRadius: 14,
+    borderColor: '#27272A',
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   advisorCtaText: {
-    fontFamily: fonts.labelSemiBold,
+    fontFamily: fonts.label,
     fontSize: 12,
-    color: colors.primary,
-    letterSpacing: 0.8,
+    color: '#FAFAFA',
+    letterSpacing: 0.6,
   },
   resetBtn: {
-    height: 48,
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    height: 46,
+    backgroundColor: 'rgba(248, 113, 113, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.35)',
-    borderRadius: 14,
+    borderColor: '#450A0A',
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   resetBtnText: {
-    fontFamily: fonts.labelSemiBold,
+    fontFamily: fonts.label,
     fontSize: 11,
-    color: '#FCA5A5',
-    letterSpacing: 0.6,
+    color: '#F87171',
+    letterSpacing: 0.5,
   },
 });

@@ -7,7 +7,6 @@ import {
   TextInput,
   Pressable,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { TopAppBar } from '../../../components/ui/TopAppBar';
@@ -15,80 +14,65 @@ import { AppIcon } from '../../../components/ui/AppIcon';
 import { colors, fonts } from '../../../theme/tokens';
 import { useUserStore } from '../../../store/useUserStore';
 
+type FilterType = 'All' | 'Free' | 'Pro' | 'Saved';
 
 export default function CodexCatalogScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   const {
     isPro,
-    curriculums,
+    rules,
     masteredRuleIds,
+    bookmarkedRuleIds,
     archiveSearch,
     setArchiveSearch,
   } = useUserStore();
 
-  const [activeFilter, setActiveFilter] = useState<string>('All');
+  const [activeFilter, setActiveFilter] = useState<FilterType>('All');
 
-  // Base progress map per curriculum ID
-  const baseProgress: Record<string, number> = {
-    'curr-1': 11,
-    'curr-2': 15,
-    'curr-3': 7,
-    'curr-4': 0,
-    'curr-5': 9,
-    'curr-6': 0,
-  };
+  const FILTER_PILLS: FilterType[] = ['All', 'Free', 'Pro', 'Saved'];
 
-  const getMasteredCount = (currId: string, defaultRuleId: string, total: number) => {
-    const isMastered = masteredRuleIds.includes(defaultRuleId);
-    const base = baseProgress[currId] ?? 0;
-    return Math.min(total, base + (isMastered ? 1 : 0));
-  };
+  const filteredRules = (rules || []).filter((rule) => {
+    // Filter by type
+    if (activeFilter === 'Free' && rule.isPro) return false;
+    if (activeFilter === 'Pro' && !rule.isPro) return false;
+    if (activeFilter === 'Saved' && !bookmarkedRuleIds.includes(rule.id)) return false;
 
-  const FILTER_PILLS = [
-    'All',
-    'Negotiation',
-    'Defense',
-    'Leadership',
-    'Boundaries',
-    'Locked Pro',
-  ] as const;
+    // Search query
+    if (archiveSearch.trim() !== '') {
+      const q = archiveSearch.toLowerCase();
+      const matchNumber = rule.number.includes(q);
+      const matchTitle = rule.title.toLowerCase().includes(q);
+      const matchSummary = rule.summary.toLowerCase().includes(q);
+      const matchCategory = rule.category.toLowerCase().includes(q);
+      if (!matchNumber && !matchTitle && !matchSummary && !matchCategory) {
+        return false;
+      }
+    }
 
-  const filteredCards = (curriculums || []).filter((card) => {
-    const matchesFilter =
-      activeFilter === 'All'
-        ? true
-        : activeFilter === 'Locked Pro'
-        ? card.isPro
-        : card.tag.toUpperCase().includes(activeFilter.toUpperCase());
-
-    const matchesSearch =
-      archiveSearch.trim() === ''
-        ? true
-        : card.title.toLowerCase().includes(archiveSearch.toLowerCase()) ||
-          card.subtitle.toLowerCase().includes(archiveSearch.toLowerCase());
-
-    return matchesFilter && matchesSearch;
+    return true;
   });
 
-  const handleCardPress = (curr: typeof curriculums[0]) => {
+  // Group filtered rules by category
+  const categories = Array.from(new Set(filteredRules.map((r) => r.category)));
+
+  const handleRulePress = (ruleId: string, ruleIsPro: boolean) => {
     try {
       Haptics.selectionAsync();
     } catch {
       // safe fallback
     }
 
-    if (curr.isPro && !isPro) {
+    if (ruleIsPro && !isPro) {
       router.push('/paywall');
     } else {
-      router.push(`/(tabs)/codex/${curr.defaultRuleId}`);
+      router.push(`/(tabs)/codex/${ruleId}`);
     }
   };
 
   return (
     <View style={styles.root}>
-      <TopAppBar title="Codex" />
+      <TopAppBar title="Rules" />
 
       <ScrollView
         style={styles.scroll}
@@ -102,36 +86,29 @@ export default function CodexCatalogScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.subCode}>LIBRARY // CODEX ARCHIVES</Text>
-          <Text style={styles.mainTitle}>Strategic Curriculums</Text>
+          <Text style={styles.subCode}>THE 12 BLACK RULES</Text>
+          <Text style={styles.mainTitle}>Master Directory</Text>
         </View>
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <AppIcon name="search" size={18} color={colors.outline} />
+          <AppIcon name="search" size={16} color="#71717A" />
           <TextInput
             value={archiveSearch}
             onChangeText={setArchiveSearch}
-            placeholder="Search doctrines, keywords, axioms..."
-            placeholderTextColor="#696459"
+            placeholder="Search rules, keywords, habits..."
+            placeholderTextColor="#71717A"
             style={styles.searchInput}
           />
           {archiveSearch.length > 0 && (
-            <Pressable
-              onPress={() => setArchiveSearch('')}
-              hitSlop={8}
-            >
-              <AppIcon name="cancel" size={16} color={colors.outline} />
+            <Pressable onPress={() => setArchiveSearch('')} hitSlop={8}>
+              <AppIcon name="cancel" size={16} color="#71717A" />
             </Pressable>
           )}
         </View>
 
         {/* Filter Pills */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-        >
+        <View style={styles.filterRow}>
           {FILTER_PILLS.map((pill) => {
             const isActive = activeFilter === pill;
             return (
@@ -161,96 +138,92 @@ export default function CodexCatalogScreen() {
               </Pressable>
             );
           })}
-        </ScrollView>
+        </View>
 
-        {/* 2-Column Bento Grid */}
-        <View style={styles.bentoGrid}>
-          {filteredCards.map((card) => {
-            const isLocked = card.isPro && !isPro;
-            const mastered = getMasteredCount(card.id, card.defaultRuleId, card.totalRules);
-
+        {/* Grouped Rules List */}
+        {categories.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No rules matched your filter.</Text>
+          </View>
+        ) : (
+          categories.map((cat) => {
+            const rulesInCat = filteredRules.filter((r) => r.category === cat);
             return (
-              <Pressable
-                key={card.id}
-                onPress={() => handleCardPress(card)}
-                style={[
-                  styles.bentoCard,
-                  isLocked && styles.bentoCardLocked,
-                ]}
-              >
-                <View style={styles.bentoTop}>
-                  <Text style={styles.bentoCategory}>
-                    {card.tag.toUpperCase()}
-                  </Text>
-                  {isLocked ? (
-                    <View style={styles.proLockPill}>
-                      <AppIcon name="lock" size={11} color={colors.primary} />
-                      <Text style={styles.proLockText}>PRO</Text>
-                    </View>
-                  ) : (
-                    <Text style={styles.bentoProgressText}>
-                      {mastered}/{card.totalRules}
-                    </Text>
-                  )}
-                </View>
+              <View key={cat} style={styles.categoryGroup}>
+                <Text style={styles.categoryHeader}>{cat}</Text>
 
-                <Text style={styles.bentoTitle} numberOfLines={2}>
-                  {card.title}
-                </Text>
+                <View style={styles.rulesList}>
+                  {rulesInCat.map((rule) => {
+                    const isLearned = masteredRuleIds.includes(rule.id);
+                    const isSaved = bookmarkedRuleIds.includes(rule.id);
+                    const isLocked = rule.isPro && !isPro;
 
-                <Text style={styles.bentoSubtitle} numberOfLines={2}>
-                  {card.subtitle}
-                </Text>
-
-                {/* Progress bar or Locked label */}
-                <View style={styles.bentoFooter}>
-                  {isLocked ? (
-                    <Text style={styles.lockedCtaText}>Tap to Unlock Access</Text>
-                  ) : (
-                    <View style={styles.bentoTrack}>
-                      <View
+                    return (
+                      <Pressable
+                        key={rule.id}
+                        onPress={() => handleRulePress(rule.id, rule.isPro)}
                         style={[
-                          styles.bentoFill,
-                          { width: `${(mastered / card.totalRules) * 100}%` },
+                          styles.ruleRowCard,
+                          isLocked && styles.ruleRowCardLocked,
                         ]}
-                      />
-                    </View>
-                  )}
+                      >
+                        <View style={styles.ruleRowLeft}>
+                          {/* Rule Number Monogram Box */}
+                          <View
+                            style={[
+                              styles.numberBox,
+                              isLearned && styles.numberBoxLearned,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.numberBoxText,
+                                isLearned && styles.numberBoxTextLearned,
+                              ]}
+                            >
+                              {rule.number}
+                            </Text>
+                          </View>
+
+                          {/* Rule Content */}
+                          <View style={styles.ruleTextCol}>
+                            <View style={styles.ruleBadgeRow}>
+                              <Text style={styles.ruleTitleText}>{rule.title}</Text>
+                              {rule.isPro && (
+                                <View style={styles.proTag}>
+                                  <Text style={styles.proTagText}>PRO</Text>
+                                </View>
+                              )}
+                              {isLearned && (
+                                <View style={styles.learnedTag}>
+                                  <Text style={styles.learnedTagText}>Learned</Text>
+                                </View>
+                              )}
+                              {isSaved && (
+                                <View style={styles.savedTag}>
+                                  <Text style={styles.savedTagText}>Saved</Text>
+                                </View>
+                              )}
+                            </View>
+
+                            <Text style={styles.ruleSummaryText} numberOfLines={2}>
+                              {rule.summary}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <AppIcon
+                          name="arrow_forward"
+                          size={14}
+                          color="#71717A"
+                        />
+                      </Pressable>
+                    );
+                  })}
                 </View>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Editorial Visual Intermission Card */}
-        <View style={styles.intermissionCard}>
-          <Text style={styles.intermissionLabel}>TACTICAL FIELD NOTE</Text>
-          <Text style={styles.intermissionQuote}>
-            "Never commit fully to anyone without reserving the ultimate right of silence."
-          </Text>
-        </View>
-
-        {/* Bottom Unlock Pro Banner */}
-        {!isPro && (
-          <Pressable
-            onPress={() => router.push('/paywall')}
-            style={styles.unlockBanner}
-          >
-            <View style={styles.unlockBannerLeft}>
-              <AppIcon name="bolt" size={18} color={colors.primary} />
-              <View>
-                <Text style={styles.unlockBannerTitle}>
-                  38 OF 100 RULES DECODED
-                </Text>
-                <Text style={styles.unlockBannerSub}>
-                  Unlock the full classified arsenal with Black Pro.
-                </Text>
               </View>
-            </View>
-            <View style={styles.unlockBtn}>
-              <Text style={styles.unlockBtnText}>UNLOCK PRO</Text>
-            </View>
-          </Pressable>
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -260,7 +233,7 @@ export default function CodexCatalogScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#09090B',
   },
   scroll: {
     flex: 1,
@@ -271,27 +244,27 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   header: {
-    gap: 4,
+    gap: 2,
   },
   subCode: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.primary,
-    letterSpacing: 1.4,
+    color: '#71717A',
+    letterSpacing: 1.2,
   },
   mainTitle: {
     fontFamily: fonts.display,
-    fontSize: 24,
-    color: colors.onSurface,
+    fontSize: 22,
+    color: '#FAFAFA',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: colors.surfaceContainerLow,
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 14,
+    borderColor: '#27272A',
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
@@ -299,176 +272,153 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fonts.body,
     fontSize: 13,
-    color: colors.onSurface,
+    color: '#FAFAFA',
     paddingVertical: 2,
   },
   filterRow: {
     flexDirection: 'row',
     gap: 8,
-    paddingVertical: 2,
   },
   filterPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 9999,
-    backgroundColor: colors.surfaceContainerLow,
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: '#27272A',
   },
   filterPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   filterPillText: {
     fontFamily: fonts.label,
     fontSize: 11,
-    color: colors.onSurfaceVariant,
+    color: '#A1A1AA',
   },
   filterPillTextActive: {
-    color: colors.onPrimary,
+    color: '#09090B',
     fontFamily: fonts.labelSemiBold,
   },
-  bentoGrid: {
+  emptyState: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontFamily: fonts.label,
+    fontSize: 12,
+    color: '#71717A',
+  },
+  categoryGroup: {
+    gap: 8,
+  },
+  categoryHeader: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    color: '#71717A',
+    letterSpacing: 1.2,
+    marginTop: 6,
+  },
+  rulesList: {
+    gap: 8,
+  },
+  ruleRowCard: {
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 14,
+    padding: 14,
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 12,
   },
-  bentoCard: {
-    width: '48%',
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 16,
-    padding: 14,
-    gap: 8,
-    minHeight: 148,
-    justifyContent: 'space-between',
+  ruleRowCardLocked: {
+    backgroundColor: '#09090B',
   },
-  bentoCardLocked: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderColor: 'rgba(242, 202, 80, 0.25)',
-  },
-  bentoTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  bentoCategory: {
-    fontFamily: fonts.label,
-    fontSize: 8,
-    color: colors.outline,
-    letterSpacing: 0.8,
-  },
-  bentoProgressText: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.primary,
-  },
-  proLockPill: {
+  ruleRowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(242, 202, 80, 0.12)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  proLockText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 9,
-    color: colors.primary,
-  },
-  bentoTitle: {
-    fontFamily: fonts.display,
-    fontSize: 15,
-    color: colors.onSurface,
-    lineHeight: 20,
-  },
-  bentoSubtitle: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-    lineHeight: 15,
-  },
-  bentoFooter: {
-    marginTop: 4,
-  },
-  bentoTrack: {
-    height: 3,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: 9999,
-    overflow: 'hidden',
-  },
-  bentoFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-  },
-  lockedCtaText: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 0.5,
-  },
-  intermissionCard: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 12,
-    padding: 16,
-    gap: 6,
-  },
-  intermissionLabel: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 1.2,
-  },
-  intermissionQuote: {
-    fontFamily: fonts.display,
-    fontStyle: 'italic',
-    fontSize: 14,
-    color: colors.onSurface,
-    lineHeight: 20,
-  },
-  unlockBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(242, 202, 80, 0.08)',
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 16,
-    padding: 14,
-  },
-  unlockBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    gap: 12,
     flex: 1,
   },
-  unlockBannerTitle: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 11,
-    color: colors.primary,
-    letterSpacing: 1,
-  },
-  unlockBannerSub: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-    marginTop: 2,
-  },
-  unlockBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+  numberBox: {
+    width: 32,
+    height: 32,
     borderRadius: 8,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  unlockBtnText: {
+  numberBoxLearned: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
+  },
+  numberBoxText: {
     fontFamily: fonts.labelSemiBold,
-    fontSize: 10,
-    color: colors.onPrimary,
+    fontSize: 11,
+    color: '#A1A1AA',
+  },
+  numberBoxTextLearned: {
+    color: '#09090B',
+  },
+  ruleTextCol: {
+    flex: 1,
+    gap: 3,
+  },
+  ruleBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  ruleTitleText: {
+    fontFamily: fonts.headlineMedium,
+    fontSize: 14,
+    color: '#FAFAFA',
+  },
+  proTag: {
+    backgroundColor: '#27272A',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  proTagText: {
+    fontFamily: fonts.label,
+    fontSize: 8,
+    color: '#FFFFFF',
+  },
+  learnedTag: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  learnedTagText: {
+    fontFamily: fonts.label,
+    fontSize: 8,
+    color: '#FAFAFA',
+  },
+  savedTag: {
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#3F3F46',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  savedTagText: {
+    fontFamily: fonts.label,
+    fontSize: 8,
+    color: '#A1A1AA',
+  },
+  ruleSummaryText: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: '#71717A',
+    lineHeight: 16,
   },
 });

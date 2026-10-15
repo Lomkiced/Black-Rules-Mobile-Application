@@ -5,43 +5,40 @@ import {
   TextInput,
   Pressable,
   StyleSheet,
-  Image,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Eye, EyeOff, Fingerprint, ArrowRight } from 'lucide-react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
+import { BMonogram } from '../../components/ui/BMonogram';
+import { LoadingDots } from '../../components/ui/LoadingOverlay';
 import { colors, fonts } from '../../theme/tokens';
 import { useUserStore } from '../../store/useUserStore';
-
-const LOGO_URI =
-  'https://lh3.googleusercontent.com/aida/AEtjO1VpScQ8WRCEqUh13NVskeMXCHPhejMae5qEgeSlZJL6dtqTMREW0FF78jRUK6sLlE3lDDAfbuB-Sza74J5XRH0uTQgMS5yz9Pdm0QGJ3-9DQDRhCH_Jc9J_mmJ8-N6x6-iQIYmHESgUkzfrJsN2NnlfUyzlaGskRTcRUxd-UNryPtB4DAR9QiHgtqn4VIHiFhDk8a4fj9-MsyLajODWrmB9t8dknmgAYkg4lxDQ1Kr73DsA7jzD2h4C3OQ';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { loginOperative, hasCompletedDiagnostic } = useUserStore();
 
-  const [mode, setMode] = useState<'signin' | 'register'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
-  const handleAuthenticate = () => {
+  const handleSignIn = () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {
       // safe fallback
     }
-    setIsVerifying(true);
+    setIsLoading(true);
     setTimeout(() => {
-      loginOperative(email.trim() || undefined);
-      setIsVerifying(false);
+      loginOperative(email.trim() || 'user@blackrules.io');
+      setIsLoading(false);
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {
@@ -55,176 +52,76 @@ export default function LoginScreen() {
     }, 700);
   };
 
-  const handleBiometricAuth = () => {
+  const handleContinueAsGuest = () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {
       // safe fallback
     }
-    setIsVerifying(true);
+    setIsGuestLoading(true);
     setTimeout(() => {
-      loginOperative(email.trim() || 'elena.vance@blackrules.io');
-      setIsVerifying(false);
-      try {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch {
-        // safe fallback
-      }
+      loginOperative('guest@blackrules.io', 'Guest Strategist');
+      setIsGuestLoading(false);
       if (hasCompletedDiagnostic) {
         router.replace('/(tabs)');
       } else {
         router.replace('/(onboarding)/diagnostic' as any);
       }
-    }, 700);
+    }, 400);
   };
 
   return (
     <View style={styles.root}>
-      {/* Watermark "00" */}
-      <Text style={styles.watermark}>00</Text>
-
-      {/* Top Ambient Gold Glow */}
-      <View style={styles.ambientGlow} pointerEvents="none" />
-
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: Math.max(insets.top + 16, 28),
+            paddingTop: Math.max(insets.top + 24, 36),
             paddingBottom: Math.max(insets.bottom + 20, 28),
           },
         ]}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Navigation Row: Back to Intro & Status Pill */}
-        <View style={styles.topNavRow}>
-          <Pressable
-            onPress={() => {
-              try {
-                Haptics.selectionAsync();
-              } catch {
-                // safe fallback
-              }
-              router.replace('/(onboarding)/welcome' as any);
-            }}
-            style={styles.backToIntroBtn}
-            hitSlop={10}
-          >
-            <Text style={styles.backToIntroText}>← Back to Intro</Text>
-          </Pressable>
-
-          <View style={styles.statusPill}>
-            <View style={styles.pulsingDot} />
-            <Text style={styles.statusText}>ACCESS GATEWAY</Text>
-          </View>
-        </View>
-
-        {/* Identity Crest & Header */}
-        <View style={styles.crestContainer}>
-          <View style={styles.crestBox}>
-            <Image
-              source={{ uri: LOGO_URI }}
-              style={styles.crestLogo}
-              resizeMode="contain"
-            />
-          </View>
-          <Text style={styles.title}>Enter The Sovereign Vault</Text>
+        {/* Brand Monogram & Header */}
+        <View style={styles.header}>
+          <BMonogram size={56} />
+          <Text style={styles.title}>Welcome to Black Rules</Text>
           <Text style={styles.subtitle}>
-            Authenticate your clearance to synchronize your Codex axioms, Arena simulations, and behavioral radar.
+            Sign in to save your daily streak, mastered rules, and character progress.
           </Text>
         </View>
 
-        {/* Clearance Mode Switcher */}
-        <View style={styles.modeSwitcher}>
-          <Pressable
-            onPress={() => {
-              try {
-                Haptics.selectionAsync();
-              } catch {
-                // fallback
-              }
-              setMode('signin');
-            }}
-            style={[
-              styles.modeTab,
-              mode === 'signin' && styles.modeTabActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.modeTabText,
-                mode === 'signin' && styles.modeTabTextActive,
-              ]}
-            >
-              Initiate Passkey
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => {
-              try {
-                Haptics.selectionAsync();
-              } catch {
-                // fallback
-              }
-              setMode('register');
-            }}
-            style={[
-              styles.modeTab,
-              mode === 'register' && styles.modeTabActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.modeTabText,
-                mode === 'register' && styles.modeTabTextActive,
-              ]}
-            >
-              Request Dossier
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* Tactical Input Fields */}
-        <View style={styles.formSection}>
-          {/* Operative Designation */}
-          <View
-            style={[
-              styles.inputCard,
-              emailFocused && styles.inputCardFocused,
-            ]}
-          >
-            <Text style={styles.inputLabel}>OPERATIVE DESIGNATION (EMAIL)</Text>
+        {/* Input Form */}
+        <View style={styles.form}>
+          {/* Email Input */}
+          <View style={[styles.inputContainer, emailFocused && styles.inputFocused]}>
+            <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
-              placeholder="strategist@blackrules.io"
-              placeholderTextColor="#696459"
+              placeholder="you@example.com"
+              placeholderTextColor="#71717A"
               autoCapitalize="none"
               keyboardType="email-address"
-              style={styles.textInput}
+              style={styles.input}
               onFocus={() => setEmailFocused(true)}
               onBlur={() => setEmailFocused(false)}
             />
           </View>
 
-          {/* Cipher Key */}
-          <View
-            style={[
-              styles.inputCard,
-              passwordFocused && styles.inputCardFocused,
-            ]}
-          >
-            <Text style={styles.inputLabel}>CRYPTOGRAPHIC CIPHER</Text>
+          {/* Password Input */}
+          <View style={[styles.inputContainer, passwordFocused && styles.inputFocused]}>
+            <Text style={styles.inputLabel}>PASSWORD</Text>
             <View style={styles.passwordRow}>
               <TextInput
                 value={password}
                 onChangeText={setPassword}
-                placeholder="••••••••••••"
-                placeholderTextColor="#696459"
+                placeholder="Enter your password"
+                placeholderTextColor="#71717A"
                 secureTextEntry={!showPassword}
-                style={[styles.textInput, { flex: 1 }]}
+                style={[styles.input, { flex: 1 }]}
                 onFocus={() => setPasswordFocused(true)}
                 onBlur={() => setPasswordFocused(false)}
               />
@@ -234,71 +131,47 @@ export default function LoginScreen() {
                 style={styles.eyeBtn}
               >
                 {showPassword ? (
-                  <EyeOff size={18} color={colors.outline} />
+                  <EyeOff size={18} color="#71717A" />
                 ) : (
-                  <Eye size={18} color={colors.outline} />
+                  <Eye size={18} color="#71717A" />
                 )}
               </Pressable>
             </View>
           </View>
         </View>
 
-        {/* Primary CTA & Biometric Row */}
-        <View style={styles.actionRow}>
+        {/* Actions */}
+        <View style={styles.actions}>
+          {/* Primary Crisp White Sign In Button */}
           <Pressable
-            onPress={handleAuthenticate}
-            disabled={isVerifying}
-            style={[
-              styles.submitBtn,
-              isVerifying && styles.submitBtnDisabled,
-            ]}
+            onPress={handleSignIn}
+            disabled={isLoading || isGuestLoading}
+            style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
           >
-            {isVerifying ? (
-              <View style={styles.verifyingRow}>
-                <ActivityIndicator size="small" color={colors.onPrimary} />
-                <Text style={styles.submitBtnText}>VERIFYING SOVEREIGN CLEARANCE...</Text>
-              </View>
+            {isLoading ? (
+              <LoadingDots size={6} color="#09090B" />
             ) : (
-              <View style={styles.verifyingRow}>
-                <Text style={styles.submitBtnText}>
-                  {mode === 'signin' ? 'AUTHENTICATE CLEARANCE' : 'ESTABLISH DOSSIER'}
-                </Text>
-                <ArrowRight size={16} color={colors.onPrimary} />
-              </View>
+              <Text style={styles.primaryButtonText}>Sign In</Text>
             )}
           </Pressable>
 
+          {/* Prominent Continue as Guest Button */}
           <Pressable
-            onPress={handleBiometricAuth}
-            style={styles.biometricBtn}
-            accessibilityLabel="Biometric Authentication"
+            onPress={handleContinueAsGuest}
+            disabled={isLoading || isGuestLoading}
+            style={styles.guestButton}
           >
-            <Fingerprint size={26} color={colors.primary} />
+            {isGuestLoading ? (
+              <LoadingDots size={6} color="#FAFAFA" />
+            ) : (
+              <Text style={styles.guestButtonText}>Continue as Guest →</Text>
+            )}
           </Pressable>
         </View>
 
-        {/* Discrete OAuth Divider */}
-        <View style={styles.dividerSection}>
-          <Text style={styles.dividerText}>// OR AUTHENTICATE VIA SOVEREIGN TOKEN //</Text>
-          <View style={styles.oauthRow}>
-            <Pressable
-              onPress={handleAuthenticate}
-              style={styles.oauthBtn}
-            >
-              <Text style={styles.oauthBtnText}>Apple ID</Text>
-            </Pressable>
-            <Pressable
-              onPress={handleAuthenticate}
-              style={styles.oauthBtn}
-            >
-              <Text style={styles.oauthBtnText}>Google Workspace</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Footer */}
-        <Text style={styles.footerText}>
-          Discrete Zero-Knowledge Telemetry • Session Encrypted
+        {/* Privacy Note */}
+        <Text style={styles.footerNote}>
+          Your progress is stored privately on your device.
         </Text>
       </ScrollView>
     </View>
@@ -308,167 +181,63 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.surface,
-  },
-  watermark: {
-    position: 'absolute',
-    top: 60,
-    right: -20,
-    fontSize: 180,
-    fontFamily: fonts.display,
-    color: colors.primary,
-    opacity: 0.03,
-    zIndex: 0,
-  },
-  ambientGlow: {
-    position: 'absolute',
-    top: 0,
-    left: '15%',
-    right: '15%',
-    height: 180,
-    backgroundColor: 'rgba(242, 202, 80, 0.07)',
-    borderRadius: 9999,
+    backgroundColor: '#09090B',
   },
   scroll: {
     flex: 1,
-    zIndex: 1,
   },
   content: {
     paddingHorizontal: 24,
-    gap: 20,
-  },
-  topNavRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-  },
-  backToIntroBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-  },
-  backToIntroText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 11,
-    color: colors.primary,
-    letterSpacing: 0.8,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 9999,
-  },
-  pulsingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
-  },
-  statusText: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 1.2,
-  },
-  crestContainer: {
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 6,
-  },
-  crestBox: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceContainerHigh,
-    borderWidth: 1,
-    borderColor: 'rgba(242, 202, 80, 0.4)',
-    alignItems: 'center',
+    gap: 24,
     justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
   },
-  crestLogo: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  header: {
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 10,
   },
   title: {
     fontFamily: fonts.display,
-    fontSize: 28,
-    color: colors.onSurface,
+    fontSize: 26,
+    color: '#FAFAFA',
     textAlign: 'center',
-    lineHeight: 34,
+    marginTop: 6,
   },
   subtitle: {
     fontFamily: fonts.body,
     fontSize: 13,
-    color: colors.onSurfaceVariant,
+    color: '#A1A1AA',
     textAlign: 'center',
-    lineHeight: 19,
+    lineHeight: 20,
     paddingHorizontal: 12,
   },
-  modeSwitcher: {
-    flexDirection: 'row',
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: 12,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
-  modeTab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  modeTabActive: {
-    backgroundColor: colors.surfaceContainerHigh,
-  },
-  modeTabText: {
-    fontFamily: fonts.label,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-    letterSpacing: 0.6,
-  },
-  modeTabTextActive: {
-    color: colors.primary,
-    fontFamily: fonts.labelSemiBold,
-  },
-  formSection: {
+  form: {
     gap: 14,
+    marginTop: 8,
   },
-  inputCard: {
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: 14,
+  inputContainer: {
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
   },
-  inputCardFocused: {
-    borderColor: colors.primary,
-    backgroundColor: colors.surfaceContainer,
+  inputFocused: {
+    borderColor: '#FFFFFF',
+    backgroundColor: '#18181B',
   },
   inputLabel: {
     fontFamily: fonts.label,
     fontSize: 9,
-    color: colors.primary,
+    color: '#71717A',
     letterSpacing: 1.2,
     marginBottom: 4,
   },
-  textInput: {
+  input: {
     fontFamily: fonts.body,
     fontSize: 14,
-    color: colors.onSurface,
+    color: '#FAFAFA',
     paddingVertical: 4,
   },
   passwordRow: {
@@ -478,83 +247,47 @@ const styles = StyleSheet.create({
   eyeBtn: {
     padding: 4,
   },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  submitBtn: {
-    flex: 1,
-    height: 56,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-  },
-  submitBtnDisabled: {
-    opacity: 0.8,
-  },
-  verifyingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  submitBtnText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 12,
-    color: colors.onPrimary,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-  },
-  biometricBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceContainerHigh,
-    borderWidth: 1,
-    borderColor: 'rgba(242, 202, 80, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dividerSection: {
-    alignItems: 'center',
+  actions: {
     gap: 12,
     marginTop: 8,
   },
-  dividerText: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.outline,
-    letterSpacing: 1,
-  },
-  oauthRow: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  oauthBtn: {
-    flex: 1,
-    height: 48,
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
+  primaryButton: {
+    height: 52,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  oauthBtnText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 13,
-    color: colors.onSurface,
+  buttonDisabled: {
+    opacity: 0.8,
   },
-  footerText: {
+  primaryButtonText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 13,
+    color: '#09090B',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  guestButton: {
+    height: 50,
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestButtonText: {
+    fontFamily: fonts.label,
+    fontSize: 12,
+    color: '#FAFAFA',
+    letterSpacing: 0.6,
+  },
+  footerNote: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.outline,
+    color: '#71717A',
     textAlign: 'center',
-    letterSpacing: 0.5,
-    marginTop: 8,
+    marginTop: 10,
   },
 });

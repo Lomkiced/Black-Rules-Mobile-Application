@@ -107,9 +107,9 @@ export const useUserStore = create<UserStoreState>()(
       rules: BLACK_RULES,
       scenarios: ARENA_SCENARIOS,
       curriculums: CURRICULUMS,
-      completedRuleIds: ['12'],
-      bookmarkedRuleIds: ['08'],
-      masteredRuleIds: ['12', '19'],
+      completedRuleIds: ['01'],
+      bookmarkedRuleIds: ['01', '03'],
+      masteredRuleIds: ['01'],
       completedScenarioIds: [],
 
       archiveSearch: '',
@@ -169,7 +169,7 @@ export const useUserStore = create<UserStoreState>()(
               xp: newXp,
               levelTier: computeLevelTier(newXp),
               stats: updatedStats,
-              lastToastMessage: 'PROTOCOL LOCKED // +20 EXP • STOICISM +1',
+              lastToastMessage: 'HABIT COMPLETED // +20 EXP • SELF-CONTROL +1',
             };
           } else {
             return { isChallengeCompleted: false };
@@ -178,7 +178,7 @@ export const useUserStore = create<UserStoreState>()(
 
       nextDailyDrill: () =>
         set((state) => ({
-          currentDrillIndex: (state.currentDrillIndex + 1) % 5,
+          currentDrillIndex: (state.currentDrillIndex + 1) % 7,
           isChallengeCompleted: false,
         })),
 

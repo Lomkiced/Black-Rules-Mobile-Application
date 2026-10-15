@@ -1,24 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Pressable,
-  Image,
   Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { AppIcon } from '../../../components/ui/AppIcon';
+import { PixelArtBanner } from '../../../components/ui/PixelArtBanner';
 import { colors, fonts } from '../../../theme/tokens';
 import { useUserStore } from '../../../store/useUserStore';
 import { BLACK_RULES } from '../../../store/mockData';
 
-type DoctrineTab = 'The Law' | 'Psychology' | 'Counter-Action';
+type RuleTab = 'The Rule' | 'Why It Works' | 'How to Use It';
 
-const DOCTRINE_TABS: DoctrineTab[] = ['The Law', 'Psychology', 'Counter-Action'];
+const RULE_TABS: RuleTab[] = ['The Rule', 'Why It Works', 'How to Use It'];
 
 export default function CodexReaderScreen() {
   const insets = useSafeAreaInsets();
@@ -33,7 +33,6 @@ export default function CodexReaderScreen() {
     toggleMasteredRule,
   } = useUserStore();
 
-  // Find initial rule index based on route parameter
   const initialIndex = BLACK_RULES.findIndex(
     (r) => r.id === id || r.number === id
   );
@@ -45,45 +44,36 @@ export default function CodexReaderScreen() {
   const isBookmarked = bookmarkedRuleIds.includes(currentRule.id);
   const isMastered = masteredRuleIds.includes(currentRule.id);
 
-  const [activeTab, setActiveTab] = useState<DoctrineTab>('The Law');
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [secondsRemaining, setSecondsRemaining] = useState(220); // 3:40 default
-
-  // Audio countdown simulation
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
-    if (isPlayingAudio && secondsRemaining > 0) {
-      timer = setInterval(() => {
-        setSecondsRemaining((prev) => (prev > 0 ? prev - 1 : 0));
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [isPlayingAudio, secondsRemaining]);
-
-  const formatAudioTime = (sec: number) => {
-    const mins = Math.floor(sec / 60);
-    const remainingSecs = sec % 60;
-    return `${mins}:${remainingSecs < 10 ? '0' : ''}${remainingSecs}`;
-  };
+  const [activeTab, setActiveTab] = useState<RuleTab>('The Rule');
 
   const handleShare = async () => {
     try {
       Haptics.selectionAsync();
       await Share.share({
-        message: `RULE #${currentRule.number} • ${currentRule.subtitle} — ${currentRule.title}.\n"${currentRule.quote}" — ${currentRule.author}\n\n#BlackRules #StrategicSovereignty`,
+        message: `BLACK RULE #${currentRule.number}: ${currentRule.title}.\n${currentRule.summary}\n\n#BlackRules`,
       });
     } catch {
       // safe fallback
     }
   };
 
-  const handleNextRule = () => {
+  const handlePrevRule = () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {
       // safe fallback
     }
+    const prevIndex = (currentIndex - 1 + BLACK_RULES.length) % BLACK_RULES.length;
+    setCurrentIndex(prevIndex);
+    setActiveTab('The Rule');
+  };
 
+  const handleNextRule = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      // safe fallback
+    }
     const nextIndex = (currentIndex + 1) % BLACK_RULES.length;
     const nextRule = BLACK_RULES[nextIndex];
 
@@ -93,36 +83,25 @@ export default function CodexReaderScreen() {
     }
 
     setCurrentIndex(nextIndex);
-    setActiveTab('The Law');
-    setIsPlayingAudio(false);
-    setSecondsRemaining(220);
-  };
-
-  const handleToggleAudio = () => {
-    try {
-      Haptics.selectionAsync();
-    } catch {
-      // safe fallback
-    }
-    setIsPlayingAudio(!isPlayingAudio);
+    setActiveTab('The Rule');
   };
 
   const bullets =
-    activeTab === 'The Law'
+    activeTab === 'The Rule'
       ? currentRule.lawBullets
-      : activeTab === 'Psychology'
+      : activeTab === 'Why It Works'
       ? currentRule.psychBullets
       : currentRule.defenseBullets;
 
   return (
     <View style={styles.root}>
-      {/* Sub-Header Bar */}
+      {/* Top Navigation Bar */}
       <View
         style={[
-          styles.subHeader,
+          styles.navBar,
           {
             paddingTop: Math.max(insets.top, 12),
-            height: 60 + Math.max(insets.top, 12),
+            height: 56 + Math.max(insets.top, 12),
           },
         ]}
       >
@@ -131,20 +110,22 @@ export default function CodexReaderScreen() {
           hitSlop={10}
           style={styles.iconBtn}
         >
-          <AppIcon name="arrow_back" size={20} color={colors.onSurface} />
+          <AppIcon name="arrow_back" size={20} color="#FAFAFA" />
         </Pressable>
 
-        <View style={styles.categoryPill}>
-          <Text style={styles.categoryPillText}>{currentRule.category}</Text>
+        <View style={styles.rulePill}>
+          <Text style={styles.rulePillText}>
+            RULE #{currentRule.number} OF 12
+          </Text>
         </View>
 
-        <View style={styles.rightIcons}>
+        <View style={styles.navRight}>
           <Pressable
             onPress={() => {
               try {
                 Haptics.selectionAsync();
               } catch {
-                // safe fallback
+                // fallback
               }
               toggleBookmarkedRule(currentRule.id);
             }}
@@ -153,185 +134,168 @@ export default function CodexReaderScreen() {
           >
             <AppIcon
               name="bookmark"
-              size={20}
-              color={isBookmarked ? colors.primary : colors.onSurfaceVariant}
+              size={19}
+              color={isBookmarked ? '#FFFFFF' : '#71717A'}
               filled={isBookmarked}
             />
           </Pressable>
-          <Pressable
-            onPress={handleShare}
-            hitSlop={8}
-            style={styles.iconBtn}
-          >
-            <AppIcon name="share" size={20} color={colors.onSurfaceVariant} />
+          <Pressable onPress={handleShare} hitSlop={8} style={styles.iconBtn}>
+            <AppIcon name="share" size={19} color="#71717A" />
           </Pressable>
         </View>
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: 120,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Archive Entry Indicator */}
-        <View style={styles.archiveIndicatorRow}>
-          <Text style={styles.archiveIndicatorText}>
-            ARCHIVE ENTRY {currentRule.number} // 48
-          </Text>
-          <View style={styles.liveTag}>
-            <View style={styles.pulsingDot} />
-            <Text style={styles.liveTagText}>ACTIVE PROTOCOL</Text>
-          </View>
+        {/* Pixel Art Banner */}
+        <PixelArtBanner
+          variant={currentRule.pixelVariant || 'shield'}
+          height={140}
+        />
+
+        {/* Title Header */}
+        <View style={styles.titleSection}>
+          <Text style={styles.categoryCode}>{currentRule.category}</Text>
+          <Text style={styles.title}>{currentRule.title}</Text>
+          <Text style={styles.summary}>{currentRule.summary}</Text>
         </View>
 
-        {/* Tactile Deck Interface (Ghost Cards + Active Card) */}
-        <View style={styles.deckContainer}>
-          {/* Ghost Card 2 (Bottom-most) */}
-          <View style={styles.ghostCard2} />
-
-          {/* Ghost Card 1 (Middle) */}
-          <View style={styles.ghostCard1} />
-
-          {/* Active Top Card */}
-          <View style={styles.activeCard}>
-            {/* Watermark Number */}
-            <Text style={styles.watermark}>{currentRule.number}</Text>
-
-            {/* Card Header */}
-            <Text style={styles.lawCode}>
-              RULE #{currentRule.number} • {currentRule.subtitle}
-            </Text>
-            <Text style={styles.lawTitle}>{currentRule.title}</Text>
-
-            {/* Segmented Tabs (The Law, Psychology, Counter-Action) */}
-            <View style={styles.tabsRow}>
-              {DOCTRINE_TABS.map((tab) => {
-                const isSelected = activeTab === tab;
-                return (
-                  <Pressable
-                    key={tab}
-                    onPress={() => {
-                      try {
-                        Haptics.selectionAsync();
-                      } catch {
-                        // fallback
-                      }
-                      setActiveTab(tab);
-                    }}
-                    style={[
-                      styles.tabItem,
-                      isSelected && styles.tabItemActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.tabText,
-                        isSelected && styles.tabTextActive,
-                      ]}
-                    >
-                      {tab}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {/* Diamond-Bulleted Tactical List */}
-            <View style={styles.bulletList}>
-              {bullets.map((point, idx) => (
-                <View key={idx} style={styles.bulletRow}>
-                  <Text style={styles.diamondIcon}>◆</Text>
-                  <Text style={styles.bulletText}>{point}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Field Scenario Image Card */}
-            <View style={styles.scenarioCard}>
-              <Image
-                source={{ uri: currentRule.imageUrl }}
-                style={styles.scenarioImage}
-                resizeMode="cover"
-              />
-              <View style={styles.scenarioOverlay}>
-                <Text style={styles.scenarioTag}>{currentRule.scenarioTag}</Text>
-              </View>
-            </View>
-
-            {/* Highlighted Quote Monolith */}
-            <View style={styles.quoteMonolith}>
-              <View style={styles.quoteBar} />
-              <View style={styles.quoteContent}>
-                <Text style={styles.quoteText}>"{currentRule.quote}"</Text>
-                <Text style={styles.quoteAuthor}>— {currentRule.author}</Text>
-              </View>
-            </View>
-
-            {/* Bottom Action Row */}
-            <View style={styles.actionRow}>
-              {/* Audio Protocol Button */}
+        {/* 3 Clear Tabs */}
+        <View style={styles.tabsRow}>
+          {RULE_TABS.map((tab) => {
+            const isSelected = activeTab === tab;
+            return (
               <Pressable
-                onPress={handleToggleAudio}
-                style={[
-                  styles.audioBtn,
-                  isPlayingAudio && styles.audioBtnActive,
-                ]}
-              >
-                <AppIcon
-                  name={isPlayingAudio ? 'pause_circle' : 'play_circle'}
-                  size={16}
-                  color={isPlayingAudio ? colors.primary : colors.onSurface}
-                />
-                <Text
-                  style={[
-                    styles.audioBtnText,
-                    isPlayingAudio && styles.audioBtnTextActive,
-                  ]}
-                >
-                  {isPlayingAudio
-                    ? `Playing (${formatAudioTime(secondsRemaining)})`
-                    : `Audio (${currentRule.audioDuration})`}
-                </Text>
-              </Pressable>
-
-              {/* Mark Mastered Button */}
-              <Pressable
+                key={tab}
                 onPress={() => {
                   try {
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    Haptics.selectionAsync();
                   } catch {
-                    // safe fallback
+                    // fallback
                   }
-                  toggleMasteredRule(currentRule.id);
+                  setActiveTab(tab);
                 }}
                 style={[
-                  styles.masteredBtn,
-                  isMastered && styles.masteredBtnActive,
+                  styles.tabItem,
+                  isSelected && styles.tabItemActive,
                 ]}
               >
-                <AppIcon
-                  name="check"
-                  size={15}
-                  color={isMastered ? colors.onPrimary : colors.onSurface}
-                />
                 <Text
                   style={[
-                    styles.masteredBtnText,
-                    isMastered && styles.masteredBtnTextActive,
+                    styles.tabItemText,
+                    isSelected && styles.tabItemTextActive,
                   ]}
                 >
-                  {isMastered ? 'Mastered' : 'Mark Mastered'}
+                  {tab}
                 </Text>
               </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Tactical Bullet List */}
+        <View style={styles.bulletBox}>
+          {bullets.map((bullet, idx) => (
+            <View key={idx} style={styles.bulletRow}>
+              <View style={styles.pixelDot} />
+              <Text style={styles.bulletText}>{bullet}</Text>
             </View>
+          ))}
+        </View>
+
+        {/* Real-Life Example Box */}
+        {currentRule.realLifeExample && (
+          <View style={styles.exampleBox}>
+            <Text style={styles.exampleLabel}>REAL-LIFE EXAMPLE</Text>
+            <Text style={styles.exampleText}>{currentRule.realLifeExample}</Text>
+          </View>
+        )}
+
+        {/* Quote Monolith */}
+        <View style={styles.quoteBox}>
+          <View style={styles.quoteBar} />
+          <View style={styles.quoteContent}>
+            <Text style={styles.quoteText}>"{currentRule.quote}"</Text>
+            <Text style={styles.quoteAuthor}>— {currentRule.author}</Text>
           </View>
         </View>
 
-        {/* Swipe up / Tap for Next Axiom Footer */}
-        <Pressable onPress={handleNextRule} style={styles.nextAxiomBar}>
-          <Text style={styles.nextAxiomText}>TAP OR SWIPE FOR NEXT AXIOM</Text>
-          <AppIcon name="arrow_forward" size={14} color={colors.primary} />
-        </Pressable>
+        {/* Action Controls: Save & Mark as Learned */}
+        <View style={styles.actionsRow}>
+          <Pressable
+            onPress={() => {
+              try {
+                Haptics.selectionAsync();
+              } catch {
+                // fallback
+              }
+              toggleBookmarkedRule(currentRule.id);
+            }}
+            style={[
+              styles.actionBtnSecondary,
+              isBookmarked && styles.actionBtnSecondaryActive,
+            ]}
+          >
+            <AppIcon
+              name="bookmark"
+              size={15}
+              color={isBookmarked ? '#FFFFFF' : '#A1A1AA'}
+              filled={isBookmarked}
+            />
+            <Text style={styles.actionBtnSecondaryText}>
+              {isBookmarked ? 'Saved in Vault' : 'Save Rule'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              try {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              } catch {
+                // fallback
+              }
+              toggleMasteredRule(currentRule.id);
+            }}
+            style={[
+              styles.actionBtnPrimary,
+              isMastered && styles.actionBtnPrimaryDone,
+            ]}
+          >
+            <AppIcon
+              name="check"
+              size={15}
+              color={isMastered ? '#FAFAFA' : '#09090B'}
+              strokeWidth={2.5}
+            />
+            <Text
+              style={[
+                styles.actionBtnPrimaryText,
+                isMastered && styles.actionBtnPrimaryDoneText,
+              ]}
+            >
+              {isMastered ? 'Learned' : 'Mark as Learned'}
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Previous / Next Rule Navigation */}
+        <View style={styles.navigationRow}>
+          <Pressable onPress={handlePrevRule} style={styles.navStepBtn}>
+            <Text style={styles.navStepText}>← Previous</Text>
+          </Pressable>
+
+          <Pressable onPress={handleNextRule} style={styles.navStepBtn}>
+            <Text style={styles.navStepText}>Next Rule →</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </View>
   );
@@ -340,13 +304,13 @@ export default function CodexReaderScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#09090B',
   },
-  subHeader: {
-    backgroundColor: 'rgba(19, 19, 21, 0.94)',
+  navBar: {
+    backgroundColor: 'rgba(9, 9, 11, 0.95)',
     borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant,
-    paddingHorizontal: 20,
+    borderBottomColor: '#27272A',
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -355,24 +319,24 @@ const styles = StyleSheet.create({
   iconBtn: {
     padding: 6,
   },
-  categoryPill: {
-    backgroundColor: colors.surfaceContainerLow,
+  rulePill: {
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    borderColor: '#27272A',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 9999,
   },
-  categoryPillText: {
+  rulePillText: {
     fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 1,
+    fontSize: 10,
+    color: '#FAFAFA',
+    letterSpacing: 0.8,
   },
-  rightIcons: {
+  navRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
   },
   scroll: {
     flex: 1,
@@ -380,196 +344,113 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 120, // Clean clearance above floating tab bar
-    gap: 16,
+    gap: 18,
   },
-  archiveIndicatorRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  titleSection: {
+    gap: 6,
   },
-  archiveIndicatorText: {
+  categoryCode: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.outline,
-    letterSpacing: 1.4,
+    color: '#71717A',
+    letterSpacing: 1.2,
   },
-  liveTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  pulsingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
-  },
-  liveTagText: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 0.8,
-  },
-  deckContainer: {
-    position: 'relative',
-    marginTop: 4,
-    marginBottom: 16,
-  },
-  ghostCard2: {
-    position: 'absolute',
-    bottom: -14,
-    left: '4%',
-    right: '4%',
-    height: 100,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 20,
-    opacity: 0.5,
-    zIndex: 1,
-  },
-  ghostCard1: {
-    position: 'absolute',
-    bottom: -7,
-    left: '2%',
-    right: '2%',
-    height: 100,
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 20,
-    opacity: 0.7,
-    zIndex: 2,
-  },
-  activeCard: {
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 20,
-    padding: 20,
-    gap: 16,
-    zIndex: 3,
-    overflow: 'hidden',
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  watermark: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    fontSize: 150,
-    fontFamily: fonts.display,
-    color: colors.primary,
-    opacity: 0.04,
-    zIndex: 0,
-  },
-  lawCode: {
-    fontFamily: fonts.label,
-    fontSize: 10,
-    color: colors.primary,
-    letterSpacing: 1.4,
-    zIndex: 1,
-  },
-  lawTitle: {
+  title: {
     fontFamily: fonts.display,
     fontSize: 24,
-    color: colors.onSurface,
+    color: '#FAFAFA',
     lineHeight: 30,
-    zIndex: 1,
+  },
+  summary: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: '#A1A1AA',
+    lineHeight: 20,
   },
   tabsRow: {
     flexDirection: 'row',
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: '#121215',
     borderRadius: 10,
     padding: 3,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    zIndex: 1,
+    borderColor: '#27272A',
   },
   tabItem: {
     flex: 1,
-    paddingVertical: 7,
+    paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 8,
   },
   tabItemActive: {
-    backgroundColor: colors.surfaceContainerHigh,
+    backgroundColor: '#FFFFFF',
   },
-  tabText: {
+  tabItemText: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.onSurfaceVariant,
+    color: '#71717A',
   },
-  tabTextActive: {
-    color: colors.primary,
+  tabItemTextActive: {
+    color: '#09090B',
     fontFamily: fonts.labelSemiBold,
   },
-  bulletList: {
-    gap: 10,
-    zIndex: 1,
+  bulletBox: {
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 14,
+    padding: 16,
+    gap: 12,
   },
   bulletRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
   },
-  diamondIcon: {
-    color: colors.primary,
-    fontSize: 10,
-    marginTop: 3,
+  pixelDot: {
+    width: 5,
+    height: 5,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 1,
+    marginTop: 6,
   },
   bulletText: {
     flex: 1,
     fontFamily: fonts.body,
     fontSize: 13,
-    color: colors.onSurface,
-    lineHeight: 19,
+    color: '#FAFAFA',
+    lineHeight: 20,
   },
-  scenarioCard: {
-    height: 120,
-    borderRadius: 14,
-    overflow: 'hidden',
-    position: 'relative',
+  exampleBox: {
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    zIndex: 1,
+    borderColor: '#27272A',
+    borderRadius: 14,
+    padding: 16,
+    gap: 6,
   },
-  scenarioImage: {
-    width: '100%',
-    height: '100%',
-  },
-  scenarioOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(19, 19, 21, 0.8)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  scenarioTag: {
+  exampleLabel: {
     fontFamily: fonts.label,
     fontSize: 9,
-    color: colors.primary,
+    color: '#71717A',
     letterSpacing: 1.2,
   },
-  quoteMonolith: {
+  exampleText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: '#D4D4D8',
+    lineHeight: 19,
+  },
+  quoteBox: {
     flexDirection: 'row',
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: '#050507',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: '#27272A',
     overflow: 'hidden',
-    zIndex: 1,
   },
   quoteBar: {
-    width: 4,
-    backgroundColor: colors.primary,
+    width: 3,
+    backgroundColor: '#FFFFFF',
   },
   quoteContent: {
     flex: 1,
@@ -579,90 +460,76 @@ const styles = StyleSheet.create({
   quoteText: {
     fontFamily: fonts.display,
     fontStyle: 'italic',
-    fontSize: 14,
-    color: colors.onSurface,
-    lineHeight: 20,
+    fontSize: 13,
+    color: '#FAFAFA',
+    lineHeight: 19,
   },
   quoteAuthor: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.outline,
-    letterSpacing: 0.8,
+    color: '#71717A',
   },
-  actionRow: {
+  actionsRow: {
     flexDirection: 'row',
-    gap: 10,
-    zIndex: 1,
+    gap: 12,
   },
-  audioBtn: {
+  actionBtnSecondary: {
     flex: 1,
+    height: 48,
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    height: 46,
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 12,
   },
-  audioBtnActive: {
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(242, 202, 80, 0.1)',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 3,
+  actionBtnSecondaryActive: {
+    borderColor: '#71717A',
   },
-  audioBtnText: {
+  actionBtnSecondaryText: {
     fontFamily: fonts.label,
     fontSize: 11,
-    color: colors.onSurface,
+    color: '#FAFAFA',
   },
-  audioBtnTextActive: {
-    color: colors.primary,
-    fontFamily: fonts.labelSemiBold,
-  },
-  masteredBtn: {
+  actionBtnPrimary: {
     flex: 1,
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    height: 46,
-    backgroundColor: colors.surfaceContainerLow,
+  },
+  actionBtnPrimaryDone: {
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 12,
+    borderColor: '#3F3F46',
   },
-  masteredBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  masteredBtnText: {
+  actionBtnPrimaryText: {
     fontFamily: fonts.labelSemiBold,
     fontSize: 11,
-    color: colors.onSurface,
+    color: '#09090B',
   },
-  masteredBtnTextActive: {
-    color: colors.onPrimary,
+  actionBtnPrimaryDoneText: {
+    color: '#FAFAFA',
   },
-  nextAxiomBar: {
+  navigationRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 12,
+    paddingTop: 8,
   },
-  nextAxiomText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 10,
-    color: colors.primary,
-    letterSpacing: 1.2,
+  navStepBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  navStepText: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    color: '#A1A1AA',
+    letterSpacing: 0.6,
   },
 });

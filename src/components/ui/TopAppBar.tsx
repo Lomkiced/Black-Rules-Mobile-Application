@@ -1,17 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { BMonogram } from './BMonogram';
+import { AppIcon } from './AppIcon';
 import { colors, fonts } from '../../theme/tokens';
 import { useUserStore } from '../../store/useUserStore';
-
-const LOGO_URI =
-  'https://lh3.googleusercontent.com/aida/AEtjO1VpScQ8WRCEqUh13NVskeMXCHPhejMae5qEgeSlZJL6dtqTMREW0FF78jRUK6sLlE3lDDAfbuB-Sza74J5XRH0uTQgMS5yz9Pdm0QGJ3-9DQDRhCH_Jc9J_mmJ8-N6x6-iQIYmHESgUkzfrJsN2NnlfUyzlaGskRTcRUxd-UNryPtB4DAR9QiHgtqn4VIHiFhDk8a4fj9-MsyLajODWrmB9t8dknmgAYkg4lxDQ1Kr73DsA7jzD2h4C3OQ';
-
-const AVATAR_URI =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCrGG84acRosCC5hZ-eL73H6Ptl9iHaPEf11DlKHKInScqxXhEFhGr8i9juFcJ7DB94XJHaeaxtvvOGqxATmJpa27fMA5cLBS4uk6ad6HrkmqlTHg3i1H1ttqwCJ5vKuU5GzZVvrH2wIlfG1By_lv4bMOAJKWkqCauXwPKMBnuCqiWcJvwHIWyFlkDXEMC5blfRMcecNVJfYeVVxmDDQ8pWpKzok8P7BICPAMVqQygiXIZ8nF6W-e6z2w';
 
 interface TopAppBarProps {
   title: string;
@@ -24,7 +19,9 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { logoutAndResetFlow } = useUserStore();
+  const { operativeName } = useUserStore();
+
+  const initial = (operativeName || 'E').trim().charAt(0).toUpperCase();
 
   const handleProfilePress = () => {
     try {
@@ -35,7 +32,7 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
     router.push('/profile' as any);
   };
 
-  const handleSearchPress = () => {
+  const handleAdvisorPress = () => {
     try {
       Haptics.selectionAsync();
     } catch {
@@ -54,45 +51,37 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
         styles.container,
         {
           paddingTop: Math.max(insets.top, 12),
-          height: 64 + Math.max(insets.top, 12),
+          height: 60 + Math.max(insets.top, 12),
         },
       ]}
     >
-      {/* Left: Monogram + Titles */}
+      {/* Left: B Monogram + Clean Screen Title */}
       <View style={styles.leftGroup}>
-        <Image
-          source={{ uri: LOGO_URI }}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <View style={styles.titleStack}>
-          <Text style={styles.brandSubtitle}>BLACK RULES</Text>
-          <Text style={styles.screenTitle}>{title}</Text>
-        </View>
+        <BMonogram size={30} />
+        <Text style={styles.screenTitle}>{title}</Text>
       </View>
 
-      {/* Right: Search & Profile Avatar */}
+      {/* Right: Only 2 clean elements - "Ask AI" pill + Profile circle */}
       <View style={styles.rightGroup}>
         <Pressable
-          onPress={handleSearchPress}
-          style={styles.searchButton}
-          accessibilityLabel="Search"
+          onPress={handleAdvisorPress}
+          style={styles.askAiPill}
+          accessibilityRole="button"
+          accessibilityLabel="Ask AI Coach"
           hitSlop={6}
         >
-          <Search size={20} color={colors.onSurfaceVariant} />
+          <AppIcon name="bolt" size={13} color="#09090B" />
+          <Text style={styles.askAiText}>Ask AI</Text>
         </Pressable>
 
         <Pressable
           onPress={handleProfilePress}
-          style={styles.avatarButton}
-          accessibilityLabel="Operative Profile"
+          style={styles.profileCircle}
+          accessibilityRole="button"
+          accessibilityLabel="Profile"
           hitSlop={6}
         >
-          <Image
-            source={{ uri: AVATAR_URI }}
-            style={styles.avatarImage}
-            resizeMode="cover"
-          />
+          <Text style={styles.profileInitial}>{initial}</Text>
         </Pressable>
       </View>
     </View>
@@ -101,10 +90,10 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(19, 19, 21, 0.88)',
+    backgroundColor: 'rgba(9, 9, 11, 0.95)',
     borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant,
-    paddingHorizontal: 24,
+    borderBottomColor: '#27272A',
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -115,53 +104,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  logo: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-  },
-  titleStack: {
-    justifyContent: 'center',
-    gap: 1,
-  },
-  brandSubtitle: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 1.8,
-    textTransform: 'uppercase',
-  },
   screenTitle: {
     fontFamily: fonts.display,
     fontSize: 18,
-    color: colors.onSurface,
-    lineHeight: 22,
+    color: '#FAFAFA',
+    letterSpacing: 0.5,
   },
   rightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  searchButton: {
-    width: 44,
-    height: 44,
+  askAiPill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 22,
+    gap: 5,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 9999,
   },
-  avatarButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1.5,
-    borderColor: 'rgba(242, 202, 80, 0.45)',
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
+  askAiText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 11,
+    color: '#09090B',
+    letterSpacing: 0.6,
   },
-  avatarImage: {
+  profileCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
+    backgroundColor: '#18181B',
+    borderWidth: 1.5,
+    borderColor: '#3F3F46',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileInitial: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 12,
+    color: '#FAFAFA',
   },
 });

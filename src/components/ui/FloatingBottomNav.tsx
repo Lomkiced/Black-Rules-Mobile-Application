@@ -2,7 +2,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { colors, fonts } from '../../theme/tokens';
+import { fonts } from '../../theme/tokens';
 import { AppIcon, MaterialSymbolName } from './AppIcon';
 
 interface TabItemConfig {
@@ -12,10 +12,10 @@ interface TabItemConfig {
 }
 
 const TABS: TabItemConfig[] = [
-  { name: 'index', label: 'Shadow', iconName: 'explore' },
-  { name: 'codex', label: 'Codex', iconName: 'auto_stories' },
-  { name: 'arena', label: 'Arena', iconName: 'swords' },
-  { name: 'stats', label: 'Stats', iconName: 'radar' },
+  { name: 'index', label: 'Today', iconName: 'explore' },
+  { name: 'codex', label: 'Rules', iconName: 'auto_stories' },
+  { name: 'arena', label: 'Practice', iconName: 'swords' },
+  { name: 'stats', label: 'Progress', iconName: 'radar' },
 ];
 
 export const FloatingBottomNav = ({
@@ -29,7 +29,7 @@ export const FloatingBottomNav = ({
       style={[
         styles.outerContainer,
         {
-          bottom: Math.max(insets.bottom, 14),
+          bottom: Math.max(insets.bottom, 12),
         },
       ]}
       pointerEvents="box-none"
@@ -61,7 +61,8 @@ export const FloatingBottomNav = ({
             }
           };
 
-          const iconColor = isFocused ? colors.primary : colors.onSurfaceVariant;
+          const activeColor = '#FFFFFF';
+          const inactiveColor = '#71717A';
 
           return (
             <Pressable
@@ -69,28 +70,31 @@ export const FloatingBottomNav = ({
               onPress={onPress}
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
-              style={[
-                styles.tabButton,
-                isFocused && styles.tabButtonActive,
-              ]}
+              style={styles.tabButton}
             >
               <AppIcon
                 name={tab.iconName}
-                size={21}
-                color={iconColor}
-                strokeWidth={isFocused ? 2.3 : 1.8}
+                size={20}
+                color={isFocused ? activeColor : inactiveColor}
+                strokeWidth={isFocused ? 2.4 : 1.6}
               />
               <Text
                 style={[
                   styles.tabLabel,
                   {
-                    color: iconColor,
+                    color: isFocused ? activeColor : inactiveColor,
                     fontFamily: isFocused ? fonts.labelSemiBold : fonts.label,
                   },
                 ]}
               >
                 {tab.label}
               </Text>
+              {/* 4px White Pixel Dot underneath active tab */}
+              {isFocused ? (
+                <View style={styles.activePixelDot} />
+              ) : (
+                <View style={styles.inactiveDotSpacer} />
+              )}
             </Pressable>
           );
         })}
@@ -108,36 +112,44 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   pillContainer: {
-    width: '100%',
-    maxWidth: 361,
+    width: '90%',
+    maxWidth: 360,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(28, 27, 29, 0.92)',
+    justifyContent: 'space-around',
+    backgroundColor: '#121215',
     borderRadius: 9999,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: '#27272A',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.65,
-    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.7,
+    shadowRadius: 20,
     elevation: 16,
   },
   tabButton: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    borderRadius: 9999,
-    gap: 3,
-  },
-  tabButtonActive: {
-    backgroundColor: 'rgba(242, 202, 80, 0.1)',
+    paddingVertical: 4,
+    gap: 2,
   },
   tabLabel: {
     fontSize: 10,
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
+  },
+  activePixelDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 1,
+    backgroundColor: '#FFFFFF',
+    marginTop: 2,
+  },
+  inactiveDotSpacer: {
+    width: 4,
+    height: 4,
+    marginTop: 2,
   },
 });

@@ -23,6 +23,7 @@ import {
 import { colors } from '../theme/tokens';
 import { initRevenueCat } from '../lib/revenuecat';
 import { TacticalToast } from '../components/ui/TacticalToast';
+import { BootSplash } from '../components/ui/LoadingOverlay';
 import { useUserStore } from '../store/useUserStore';
 
 const queryClient = new QueryClient();
@@ -134,6 +135,8 @@ export default function RootLayout() {
     JetBrainsMono_600SemiBold,
   });
 
+  const [showSplash, setShowSplash] = useState(true);
+
   useEffect(() => {
     initRevenueCat();
   }, []);
@@ -141,7 +144,7 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color="#FFFFFF" />
         <StatusBar style="light" />
       </View>
     );
@@ -153,6 +156,12 @@ export default function RootLayout() {
         <View style={styles.container}>
           <StatusBar style="light" />
           <RootNavigation />
+          {showSplash && (
+            <BootSplash
+              duration={1400}
+              onFinish={() => setShowSplash(false)}
+            />
+          )}
         </View>
       </QueryClientProvider>
     </GestureHandlerRootView>
@@ -162,11 +171,11 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#09090B',
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#09090B',
     alignItems: 'center',
     justifyContent: 'center',
   },

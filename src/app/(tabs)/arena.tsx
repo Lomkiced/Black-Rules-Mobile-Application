@@ -5,24 +5,19 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Image,
-  ActivityIndicator,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { TopAppBar } from '../../components/ui/TopAppBar';
 import { AppIcon } from '../../components/ui/AppIcon';
+import { PixelArtBanner, PixelBannerVariant } from '../../components/ui/PixelArtBanner';
+import { LoadingDots } from '../../components/ui/LoadingOverlay';
 import { colors, fonts } from '../../theme/tokens';
 import { useUserStore } from '../../store/useUserStore';
 import { ARENA_SCENARIOS } from '../../store/mockData';
 import { TraitKey } from '../../types';
 
-const ELENA_AVATAR =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCrGG84acRosCC5hZ-eL73H6Ptl9iHaPEf11DlKHKInScqxXhEFhGr8i9juFcJ7DB94XJHaeaxtvvOGqxATmJpa27fMA5cLBS4uk6ad6HrkmqlTHg3i1H1ttqwCJ5vKuU5GzZVvrH2wIlfG1By_lv4bMOAJKWkqCauXwPKMBnuCqiWcJvwHIWyFlkDXEMC5blfRMcecNVJfYeVVxmDDQ8pWpKzok8P7BICPAMVqQygiXIZ8nF6W-e6z2w';
-
-const MARCUS_AVATAR =
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80';
+const SCENARIO_VARIANTS: PixelBannerVariant[] = ['chess', 'scale', 'shield', 'eye', 'crown'];
 
 export default function ArenaScreen() {
   const router = useRouter();
@@ -37,48 +32,48 @@ export default function ArenaScreen() {
 
   const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
   const [selectedKey, setSelectedKey] = useState<'A' | 'B' | 'C'>('C');
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [isLockedIn, setIsLockedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasConfirmed, setHasConfirmed] = useState(false);
 
   const currentScenario = scenarios[currentScenarioIndex] || scenarios[0];
-  const isCompleted = completedScenarioIds?.includes(currentScenario.id) || false;
-  const isProRoom = currentScenario.isPro && !isPro;
+  const isScenarioCompleted = completedScenarioIds?.includes(currentScenario.id) || false;
+  const bannerVariant = SCENARIO_VARIANTS[currentScenarioIndex % SCENARIO_VARIANTS.length];
 
   const selectedOption =
     currentScenario.options.find((opt) => opt.id === selectedKey) ||
     currentScenario.options[0];
 
-  const handleSelectRoom = (index: number) => {
+  const handleSelectScenario = (index: number) => {
     try {
       Haptics.selectionAsync();
     } catch {
       // safe fallback
     }
 
-    const targetScenario = scenarios[index];
-    if (targetScenario.isPro && !isPro) {
+    const target = scenarios[index];
+    if (target.isPro && !isPro) {
       router.push('/paywall');
       return;
     }
 
     setCurrentScenarioIndex(index);
-    setIsLockedIn(completedScenarioIds?.includes(targetScenario.id) || false);
-    setIsExecuting(false);
-    setSelectedKey(targetScenario.options.find((o) => o.isRecommended)?.id || 'A');
+    setHasConfirmed(completedScenarioIds?.includes(target.id) || false);
+    setIsLoading(false);
+    setSelectedKey(target.options.find((o) => o.isRecommended)?.id || 'A');
   };
 
-  const handleSelectOption = (key: 'A' | 'B' | 'C') => {
-    if (isLockedIn) return;
+  const handleSelectChoice = (id: 'A' | 'B' | 'C') => {
+    if (hasConfirmed) return;
     try {
       Haptics.selectionAsync();
     } catch {
       // safe fallback
     }
-    setSelectedKey(key);
+    setSelectedKey(id);
   };
 
-  const handleExecute = () => {
-    if (isLockedIn || isExecuting) return;
+  const handleConfirmChoice = () => {
+    if (hasConfirmed || isLoading) return;
 
     if (currentScenario.isPro && !isPro) {
       router.push('/paywall');
@@ -91,11 +86,12 @@ export default function ArenaScreen() {
       // safe fallback
     }
 
-    setIsExecuting(true);
+    setIsLoading(true);
 
     setTimeout(() => {
-      setIsExecuting(false);
-      setIsLockedIn(true);
+      setIsLoading(false);
+      setHasConfirmed(true);
+
       completeArenaScenario(
         currentScenario.id,
         selectedOption.expReward,
@@ -107,268 +103,191 @@ export default function ArenaScreen() {
       } catch {
         // safe fallback
       }
-    }, 900);
+    }, 600);
   };
 
-  const handleNextRoom = () => {
+  const handleNextScenario = () => {
     try {
-      Haptics.selectionAsync();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {
       // safe fallback
     }
 
     const nextIndex = (currentScenarioIndex + 1) % scenarios.length;
-    const nextScenario = scenarios[nextIndex];
-    if (nextScenario.isPro && !isPro) {
+    const target = scenarios[nextIndex];
+    if (target.isPro && !isPro) {
       router.push('/paywall');
       return;
     }
 
     setCurrentScenarioIndex(nextIndex);
-    setIsLockedIn(completedScenarioIds?.includes(nextScenario.id) || false);
-    setIsExecuting(false);
-    setSelectedKey(nextScenario.options.find((o) => o.isRecommended)?.id || 'A');
+    setHasConfirmed(completedScenarioIds?.includes(target.id) || false);
+    setIsLoading(false);
+    setSelectedKey(target.options.find((o) => o.isRecommended)?.id || 'A');
   };
 
-  const formatTraitDeltas = (deltas: Partial<Record<TraitKey, number>>) => {
-    return Object.entries(deltas)
-      .map(([key, val]) => `${key.toUpperCase()} ${val && val > 0 ? `+${val}` : val}`)
-      .join(' • ');
+  const handleResetChoice = () => {
+    setHasConfirmed(false);
   };
 
   return (
     <View style={styles.root}>
-      <TopAppBar title="The Arena" />
+      <TopAppBar title="Practice" />
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: 120,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Room Selector Horizontal Pills */}
+        {/* Scenario Selector Pills */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.roomSelectorRow}
+          contentContainerStyle={styles.scenarioSelectorRow}
         >
           {scenarios.map((sc, idx) => {
             const isActive = idx === currentScenarioIndex;
-            const isScCompleted = completedScenarioIds?.includes(sc.id);
+            const isDone = completedScenarioIds?.includes(sc.id);
 
             return (
               <Pressable
                 key={sc.id}
-                onPress={() => handleSelectRoom(idx)}
+                onPress={() => handleSelectScenario(idx)}
                 style={[
-                  styles.roomPill,
-                  isActive && styles.roomPillActive,
-                  sc.isPro && !isPro && styles.roomPillPro,
+                  styles.pill,
+                  isActive && styles.pillActive,
+                  sc.isPro && !isPro && styles.pillPro,
                 ]}
               >
                 <Text
                   style={[
-                    styles.roomPillText,
-                    isActive && styles.roomPillTextActive,
+                    styles.pillText,
+                    isActive && styles.pillTextActive,
                   ]}
                 >
-                  {sc.roomNumber}
+                  Scenario {idx + 1}
+                  {sc.isPro && !isPro ? ' (PRO)' : ''}
                 </Text>
 
-                {sc.isPro && !isPro ? (
-                  <View style={styles.proTagSmall}>
-                    <AppIcon name="lock" size={9} color={colors.primary} />
-                    <Text style={styles.proTagSmallText}>PRO</Text>
-                  </View>
-                ) : isScCompleted ? (
+                {isDone && (
                   <AppIcon
                     name="check_circle"
                     size={11}
-                    color={isActive ? colors.onPrimary : colors.primary}
+                    color={isActive ? '#09090B' : '#FFFFFF'}
                   />
-                ) : null}
+                )}
               </Pressable>
             );
           })}
         </ScrollView>
 
-        {/* Top Banner: Active Simulation Room Header */}
-        <View style={styles.topBanner}>
-          <View style={styles.bannerRow}>
-            <Text style={styles.roomCode}>
-              {currentScenario.roomNumber} // {currentScenario.difficulty.toUpperCase()}
-            </Text>
-            <View style={styles.timerTag}>
-              <AppIcon name="timer" size={13} color={colors.primary} />
-              <Text style={styles.timerText}>Live Pressure • 90s to Decide</Text>
-            </View>
-          </View>
+        {/* Clear Situation Card */}
+        <View style={styles.situationCard}>
+          <PixelArtBanner variant={bannerVariant} height={120} showBorder={false} />
 
-          <View style={styles.scenarioTitleRow}>
-            <Text style={styles.scenarioTitle}>{currentScenario.title}</Text>
-            {/* Gold stars */}
-            <View style={styles.starsRow}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <AppIcon
-                  key={s}
-                  name="star"
-                  size={12}
-                  color={s <= currentScenario.stars ? colors.primary : colors.outlineVariant}
-                  filled={s <= currentScenario.stars}
-                />
-              ))}
+          <View style={styles.situationBody}>
+            <View style={styles.situationMeta}>
+              <Text style={styles.situationTag}>
+                {currentScenario.roomNumber} • {currentScenario.difficulty.toUpperCase()}
+              </Text>
+              {currentScenario.isPro && (
+                <View style={styles.proBadge}>
+                  <Text style={styles.proBadgeText}>PRO SCENARIO</Text>
+                </View>
+              )}
+            </View>
+
+            <Text style={styles.situationTitle}>{currentScenario.title}</Text>
+            <Text style={styles.situationNarrative}>{currentScenario.narrative}</Text>
+
+            <View style={styles.questionBox}>
+              <Text style={styles.questionText}>{currentScenario.question}</Text>
             </View>
           </View>
         </View>
 
-        {/* Narrative Context Card */}
-        <View style={styles.contextCard}>
-          <View style={styles.contextHeader}>
-            <Text style={styles.contextLabel}>{currentScenario.contextTag}</Text>
-            <View style={styles.attentionTag}>
-              <Text style={styles.attentionText}>ATTENTION: 100%</Text>
-            </View>
-          </View>
-
-          {/* Overlapping circular avatars */}
-          <View style={styles.avatarsRow}>
-            <View style={styles.avatarOverlapContainer}>
-              <Image
-                source={{ uri: ELENA_AVATAR }}
-                style={[styles.avatarCircle, styles.avatarElena]}
-              />
-              <Image
-                source={{ uri: MARCUS_AVATAR }}
-                style={[styles.avatarCircle, styles.avatarMarcus]}
-              />
-            </View>
-            <View style={styles.participantsTextContainer}>
-              <Text style={styles.participantName}>{currentScenario.stakeholders}</Text>
-              <Text style={styles.participantSub}>High-Stakes Arena Dilemma</Text>
-            </View>
-          </View>
-
-          {/* Narrative text */}
-          <Text style={styles.narrativeBody}>{currentScenario.narrative}</Text>
-
-          <View style={styles.dilemmaBox}>
-            <AppIcon name="help_outline" size={14} color={colors.primary} />
-            <Text style={styles.dilemmaText}>{currentScenario.question}</Text>
-          </View>
-        </View>
-
-        {/* 3 Interactive Response Cards */}
-        <View style={styles.optionsSection}>
-          <Text style={styles.optionsSectionTitle}>SELECT TACTICAL RESPONSE</Text>
+        {/* 3 Clean Choice Cards */}
+        <View style={styles.choicesSection}>
+          <Text style={styles.choicesSectionTitle}>YOUR RESPONSE</Text>
 
           {currentScenario.options.map((opt) => {
             const isSelected = selectedKey === opt.id;
             return (
               <Pressable
                 key={opt.id}
-                onPress={() => handleSelectOption(opt.id)}
+                onPress={() => handleSelectChoice(opt.id)}
                 style={[
-                  styles.optionCard,
-                  isSelected && styles.optionCardSelected,
+                  styles.choiceCard,
+                  isSelected && styles.choiceCardSelected,
                 ]}
               >
-                <View style={styles.optionTopRow}>
-                  <View
+                <View
+                  style={[
+                    styles.choiceBadge,
+                    isSelected && styles.choiceBadgeSelected,
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.optionKeyCircle,
-                      isSelected && styles.optionKeyCircleSelected,
+                      styles.choiceBadgeText,
+                      isSelected && styles.choiceBadgeTextSelected,
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.optionKeyText,
-                        isSelected && styles.optionKeyTextSelected,
-                      ]}
-                    >
-                      {opt.id}
-                    </Text>
-                  </View>
-
-                  <View style={styles.optionTagBox}>
-                    <Text style={styles.optionRiskTag}>{opt.riskTag}</Text>
-                    {opt.isRecommended && (
-                      <View style={styles.recommendedBadge}>
-                        <AppIcon name="bolt" size={9} color={colors.primary} />
-                        <Text style={styles.recommendedText}>OPTIMAL FRAME</Text>
-                      </View>
-                    )}
-                  </View>
+                    {opt.id}
+                  </Text>
                 </View>
 
-                <Text style={styles.optionTitle}>{opt.label}</Text>
-                <Text style={styles.optionQuote}>{opt.quote}</Text>
-
-                <View style={styles.optionPostureRow}>
-                  <Text style={styles.postureDesc}>{opt.tacticalEffect}</Text>
+                <View style={styles.choiceContent}>
+                  <Text style={styles.choiceLabel}>{opt.label}</Text>
+                  <Text style={styles.choiceQuote}>"{opt.quote}"</Text>
                 </View>
               </Pressable>
             );
           })}
         </View>
 
-        {/* Dynamic Tactical Simulation Forecast Bar */}
-        <View style={styles.forecastBar}>
-          <View style={styles.forecastHeaderRow}>
-            <View style={styles.forecastLeft}>
-              <AppIcon name="bolt" size={15} color={colors.primary} />
-              <Text style={styles.forecastText}>Tactical Simulation Forecast</Text>
-            </View>
-            <Text style={styles.forecastXp}>+{selectedOption.expReward} EXP</Text>
-          </View>
-
-          <Text style={styles.forecastOutcome}>{selectedOption.forecast}</Text>
-
-          {selectedOption.traitDeltas && (
-            <View style={styles.traitDeltaRow}>
-              <Text style={styles.traitDeltaText}>
-                {formatTraitDeltas(selectedOption.traitDeltas)}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Action Button: Execute or Next Room */}
-        {isLockedIn ? (
-          <View style={styles.lockedContainer}>
-            <View style={styles.lockedInBanner}>
-              <AppIcon name="shield" size={16} color={colors.onSecondaryContainer} />
-              <Text style={styles.lockedInText}>
-                PROTOCOL EXECUTED • {selectedOption.expReward} EXP SECURED
-              </Text>
+        {/* Action Button or Result Card */}
+        {hasConfirmed ? (
+          <View style={styles.resultCard}>
+            <View style={styles.resultHeader}>
+              <Text style={styles.resultLabel}>RESULT & LESSON</Text>
+              <Text style={styles.resultXp}>+{selectedOption.expReward} XP</Text>
             </View>
 
-            <Pressable onPress={handleNextRoom} style={styles.nextRoomBtn}>
-              <Text style={styles.nextRoomBtnText}>Next Simulation Room</Text>
-              <AppIcon name="arrow_forward" size={16} color={colors.onPrimary} />
-            </Pressable>
+            <Text style={styles.resultEffect}>{selectedOption.tacticalEffect}</Text>
+
+            <View style={styles.lessonBox}>
+              <Text style={styles.lessonTag}>WHAT ACTUALLY HAPPENED</Text>
+              <Text style={styles.lessonForecast}>{selectedOption.forecast}</Text>
+            </View>
+
+            <View style={styles.resultActions}>
+              <Pressable onPress={handleResetChoice} style={styles.tryAnotherBtn}>
+                <Text style={styles.tryAnotherText}>Try Another Choice</Text>
+              </Pressable>
+
+              <Pressable onPress={handleNextScenario} style={styles.nextScenarioBtn}>
+                <Text style={styles.nextScenarioText}>Next Scenario →</Text>
+              </Pressable>
+            </View>
           </View>
         ) : (
           <Pressable
-            onPress={handleExecute}
-            disabled={isExecuting}
-            style={[
-              styles.executeBtn,
-              isExecuting && styles.executeBtnDisabled,
-            ]}
+            onPress={handleConfirmChoice}
+            disabled={isLoading}
+            style={[styles.confirmBtn, isLoading && styles.confirmBtnDisabled]}
           >
-            {isExecuting ? (
-              <View style={styles.executingRow}>
-                <ActivityIndicator size="small" color={colors.onPrimary} />
-                <Text style={styles.executeBtnText}>
-                  ANALYZING TACTICAL IMPACT...
-                </Text>
-              </View>
+            {isLoading ? (
+              <LoadingDots size={6} color="#09090B" />
             ) : (
-              <View style={styles.executingRow}>
-                <Text style={styles.executeBtnText}>
-                  Execute Response {selectedKey}
-                </Text>
-                <AppIcon name="arrow_forward" size={16} color={colors.onPrimary} />
-              </View>
+              <Text style={styles.confirmBtnText}>
+                Confirm Choice {selectedKey} →
+              </Text>
             )}
           </Pressable>
         )}
@@ -380,410 +299,267 @@ export default function ArenaScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#09090B',
   },
   scroll: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 120,
-    gap: 16,
+    paddingTop: 16,
+    gap: 18,
   },
-  roomSelectorRow: {
+  scenarioSelectorRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     paddingVertical: 2,
   },
-  roomPill: {
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 9999,
-    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: 8,
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: '#27272A',
   },
-  roomPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  pillActive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
-  roomPillPro: {
-    borderColor: 'rgba(242, 202, 80, 0.4)',
+  pillPro: {
+    borderColor: '#3F3F46',
   },
-  roomPillText: {
+  pillText: {
     fontFamily: fonts.label,
     fontSize: 11,
-    color: colors.onSurfaceVariant,
-    letterSpacing: 0.8,
+    color: '#A1A1AA',
   },
-  roomPillTextActive: {
+  pillTextActive: {
+    color: '#09090B',
     fontFamily: fonts.labelSemiBold,
-    color: colors.onPrimary,
   },
-  proTagSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: 'rgba(242, 202, 80, 0.15)',
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  proTagSmallText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 9,
-    color: colors.primary,
-  },
-  topBanner: {
-    backgroundColor: colors.surfaceContainerLow,
+  situationCard: {
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 14,
-    padding: 14,
-    gap: 8,
-  },
-  bannerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  roomCode: {
-    fontFamily: fonts.label,
-    fontSize: 10,
-    color: colors.primary,
-    letterSpacing: 1.4,
-  },
-  timerTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  timerText: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.onSurfaceVariant,
-  },
-  scenarioTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  scenarioTitle: {
-    fontFamily: fonts.headlineMedium,
-    fontSize: 15,
-    color: colors.onSurface,
-  },
-  starsRow: {
-    flexDirection: 'row',
-    gap: 3,
-  },
-  contextCard: {
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: '#27272A',
     borderRadius: 16,
+    overflow: 'hidden',
+  },
+  situationBody: {
     padding: 16,
     gap: 12,
   },
-  contextHeader: {
+  situationMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  contextLabel: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.outline,
-    letterSpacing: 1,
-  },
-  attentionTag: {
-    backgroundColor: 'rgba(242, 202, 80, 0.1)',
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  attentionText: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.primary,
-  },
-  avatarsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatarOverlapContainer: {
-    flexDirection: 'row',
-    width: 58,
-    height: 36,
-    position: 'relative',
-  },
-  avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: colors.surface,
-  },
-  avatarElena: {
-    position: 'absolute',
-    left: 0,
-    zIndex: 2,
-  },
-  avatarMarcus: {
-    position: 'absolute',
-    left: 22,
-    zIndex: 1,
-  },
-  participantsTextContainer: {
-    gap: 2,
-    flex: 1,
-  },
-  participantName: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 13,
-    color: colors.onSurface,
-  },
-  participantSub: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-  },
-  narrativeBody: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.onSurfaceVariant,
-    lineHeight: 20,
-  },
-  dilemmaBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 10,
-    padding: 10,
-  },
-  dilemmaText: {
-    flex: 1,
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 11,
-    color: colors.onSurface,
-    lineHeight: 16,
-  },
-  optionsSection: {
-    gap: 10,
-  },
-  optionsSectionTitle: {
+  situationTag: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.outline,
-    letterSpacing: 1.2,
+    color: '#71717A',
+    letterSpacing: 1,
   },
-  optionCard: {
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 14,
-    padding: 14,
-    gap: 8,
-  },
-  optionCardSelected: {
-    backgroundColor: colors.surfaceContainerHigh,
-    borderColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  optionTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  optionKeyCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  optionKeyCircleSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  optionKeyText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 11,
-    color: colors.primary,
-  },
-  optionKeyTextSelected: {
-    color: colors.onPrimary,
-  },
-  optionTagBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  optionRiskTag: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 0.8,
-  },
-  recommendedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(242, 202, 80, 0.15)',
+  proBadge: {
+    backgroundColor: '#27272A',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  recommendedText: {
-    fontFamily: fonts.labelSemiBold,
+  proBadgeText: {
+    fontFamily: fonts.label,
     fontSize: 8,
-    color: colors.primary,
+    color: '#FAFAFA',
   },
-  optionTitle: {
+  situationTitle: {
+    fontFamily: fonts.display,
+    fontSize: 20,
+    color: '#FAFAFA',
+  },
+  situationNarrative: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: '#A1A1AA',
+    lineHeight: 20,
+  },
+  questionBox: {
+    backgroundColor: '#050507',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 10,
+    padding: 12,
+  },
+  questionText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: '#FAFAFA',
+    lineHeight: 18,
+  },
+  choicesSection: {
+    gap: 10,
+  },
+  choicesSectionTitle: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    color: '#71717A',
+    letterSpacing: 1.2,
+  },
+  choiceCard: {
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  choiceCardSelected: {
+    backgroundColor: '#18181B',
+    borderColor: '#FFFFFF',
+  },
+  choiceBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  choiceBadgeSelected: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
+  },
+  choiceBadgeText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 11,
+    color: '#A1A1AA',
+  },
+  choiceBadgeTextSelected: {
+    color: '#09090B',
+  },
+  choiceContent: {
+    flex: 1,
+    gap: 4,
+  },
+  choiceLabel: {
     fontFamily: fonts.headlineMedium,
-    fontSize: 15,
-    color: colors.onSurface,
+    fontSize: 14,
+    color: '#FAFAFA',
   },
-  optionQuote: {
+  choiceQuote: {
     fontFamily: fonts.body,
     fontStyle: 'italic',
     fontSize: 12,
-    color: colors.onSurfaceVariant,
-    lineHeight: 18,
+    color: '#A1A1AA',
+    lineHeight: 17,
   },
-  optionPostureRow: {
-    borderTopWidth: 1,
-    borderTopColor: colors.outlineVariant,
-    paddingTop: 6,
-    marginTop: 2,
-  },
-  postureDesc: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.outline,
-    lineHeight: 14,
-  },
-  forecastBar: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
+  confirmBtn: {
+    height: 52,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 14,
-    gap: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
   },
-  forecastHeaderRow: {
+  confirmBtnDisabled: {
+    opacity: 0.8,
+  },
+  confirmBtnText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 13,
+    color: '#09090B',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  resultCard: {
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    gap: 12,
+    marginTop: 4,
+  },
+  resultHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  forecastLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  forecastText: {
-    fontFamily: fonts.label,
+  resultLabel: {
+    fontFamily: fonts.labelSemiBold,
     fontSize: 10,
-    color: colors.onSurfaceVariant,
+    color: '#FFFFFF',
+    letterSpacing: 1.2,
   },
-  forecastXp: {
+  resultXp: {
     fontFamily: fonts.labelSemiBold,
     fontSize: 12,
-    color: colors.primary,
+    color: '#FFFFFF',
   },
-  forecastOutcome: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 10,
-    color: colors.primary,
-    letterSpacing: 0.6,
+  resultEffect: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: '#FAFAFA',
+    lineHeight: 19,
   },
-  traitDeltaRow: {
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: colors.outlineVariant,
+  lessonBox: {
+    backgroundColor: '#050507',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 10,
+    padding: 12,
+    gap: 4,
   },
-  traitDeltaText: {
+  lessonTag: {
     fontFamily: fonts.label,
     fontSize: 9,
-    color: colors.onSurfaceVariant,
+    color: '#71717A',
+    letterSpacing: 1,
+  },
+  lessonForecast: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 10,
+    color: '#FAFAFA',
     letterSpacing: 0.5,
   },
-  lockedContainer: {
-    gap: 10,
-  },
-  lockedInBanner: {
+  resultActions: {
     flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  tryAnotherBtn: {
+    flex: 1,
+    height: 46,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.secondaryContainer,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: colors.primary,
   },
-  lockedInText: {
+  tryAnotherText: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    color: '#A1A1AA',
+  },
+  nextScenarioBtn: {
+    flex: 1,
+    height: 46,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextScenarioText: {
     fontFamily: fonts.labelSemiBold,
     fontSize: 11,
-    color: colors.onSecondaryContainer,
-    letterSpacing: 0.8,
-  },
-  nextRoomBtn: {
-    height: 50,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  nextRoomBtnText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 12,
-    color: colors.onPrimary,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  executeBtn: {
-    height: 52,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  executeBtnDisabled: {
-    opacity: 0.8,
-  },
-  executingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  executeBtnText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 12,
-    color: colors.onPrimary,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    color: '#09090B',
   },
 });

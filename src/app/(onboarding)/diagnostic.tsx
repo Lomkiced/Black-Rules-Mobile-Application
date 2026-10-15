@@ -5,113 +5,94 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { AppIcon } from '../../components/ui/AppIcon';
+import { LoadingDots } from '../../components/ui/LoadingOverlay';
 import { colors, fonts } from '../../theme/tokens';
 import { useUserStore } from '../../store/useUserStore';
 import { TraitKey } from '../../types';
 
 interface DiagnosticOption {
   id: string;
-  indexCode: string;
+  number: string;
   label: string;
-  impactTag: string;
   traitDeltas: Partial<Record<TraitKey, number>>;
 }
 
-interface DiagnosticStep {
-  category: string;
+interface DiagnosticQuestion {
   question: string;
-  subContext: string;
   options: DiagnosticOption[];
 }
 
-const DIAGNOSTIC_STEPS: DiagnosticStep[] = [
+const QUESTIONS: DiagnosticQuestion[] = [
   {
-    category: 'STOICISM & ASSERTIVENESS',
-    question: 'How do you respond when interrupted during a high-stakes meeting?',
-    subContext: 'Assessing your baseline threshold for emotional containment versus reactive defense.',
+    question: 'How do you respond when someone interrupts you in a meeting?',
     options: [
       {
         id: 'opt-1-1',
-        indexCode: '01',
-        label: 'Maintain neutral eye contact in silence until they finish, then continue your exact sentence as if no interruption occurred.',
-        impactTag: 'High Stoicism • Controlled Frame',
+        number: '01',
+        label: 'Wait in calm silence until they stop, then finish your sentence smoothly.',
         traitDeltas: { stoicism: +8, assertiveness: +4 },
       },
       {
         id: 'opt-1-2',
-        indexCode: '02',
-        label: 'Raise hand smoothly and firmly state: "Hold that thought, I am finishing the thesis before we take inquiries."',
-        impactTag: 'High Assertiveness • Boundary Defense',
+        number: '02',
+        label: 'Raise your hand and state firmly: "Allow me to finish this thought first."',
         traitDeltas: { assertiveness: +8, stoicism: +2 },
       },
       {
         id: 'opt-1-3',
-        indexCode: '03',
-        label: 'Yield the floor immediately and wait to see if the chair returns the speaking turn to you later.',
-        impactTag: 'Vulnerable Compliance • Frame Loss',
+        number: '03',
+        label: 'Stop talking immediately and let them take over the conversation.',
         traitDeltas: { stoicism: -4, assertiveness: -6 },
       },
     ],
   },
   {
-    category: 'NEGOTIATION & LEVERAGE',
-    question: 'A counterpart presents an aggressive lowball offer and waits for your reaction. What is your immediate move?',
-    subContext: 'Testing reserve posture against manufactured price discounting anchors.',
+    question: 'Someone offers you 20% less than you deserve. What is your immediate reaction?',
     options: [
       {
         id: 'opt-2-1',
-        indexCode: '01',
-        label: 'Hold 4 seconds of dead silence and maintain eye contact until they bid against themselves.',
-        impactTag: 'High Negotiation • +8 Leverage',
+        number: '01',
+        label: 'Hold 4 seconds of calm silence and let them fill the void.',
         traitDeltas: { negotiation: +8, stoicism: +5 },
       },
       {
         id: 'opt-2-2',
-        indexCode: '02',
-        label: 'Immediately justify your price with a detailed breakdown of your costs and operational complexity.',
-        impactTag: 'Over-Explanation • -5 Leverage',
-        traitDeltas: { negotiation: -5, assertiveness: -3 },
+        number: '02',
+        label: 'Immediately give a long speech explaining all your costs and hard work.',
+        traitDeltas: { negotiation: -4, assertiveness: -2 },
       },
       {
         id: 'opt-2-3',
-        indexCode: '03',
-        label: 'Split the difference immediately to preserve relationship harmony and close the deal today.',
-        impactTag: 'Premature Concession • -8 Leverage',
+        number: '03',
+        label: 'Accept the discount right away to avoid any conflict.',
         traitDeltas: { negotiation: -8, assertiveness: -5 },
       },
     ],
   },
   {
-    category: 'SOCIAL AWARENESS & DECEPTION DEFENSE',
-    question: 'A colleague suddenly becomes unusually complimentary right before a major reorganization. How do you read the signal?',
-    subContext: 'Detecting counterfeit warmth deployed to probe for strategic leaks.',
+    question: 'A coworker becomes unusually friendly right before major team changes. What do you do?',
     options: [
       {
         id: 'opt-3-1',
-        indexCode: '01',
-        label: 'Audit what information they are extracting and feed only non-critical variables while noting the behavioral shift.',
-        impactTag: 'Apex Awareness • +10 Defense',
+        number: '01',
+        label: 'Observe their actions quietly without sharing sensitive project plans.',
         traitDeltas: { awareness: +10, persuasion: +4 },
       },
       {
         id: 'opt-3-2',
-        indexCode: '02',
-        label: 'Share your upcoming division roadmap openly to reciprocate and build an internal coalition.',
-        impactTag: 'Exposed Flank • High Strategic Risk',
+        number: '02',
+        label: 'Share your plans openly hoping to make them your close ally.',
         traitDeltas: { awareness: -6, negotiation: -4 },
       },
       {
         id: 'opt-3-3',
-        indexCode: '03',
-        label: 'Confront them publicly about their sudden shift in tone during the morning standup.',
-        impactTag: 'Premature Escalation • Medium Risk',
-        traitDeltas: { awareness: -2, stoicism: -5 },
+        number: '03',
+        label: 'Confront them aggressively in front of the entire group.',
+        traitDeltas: { awareness: -2, stoicism: -6 },
       },
     ],
   },
@@ -124,9 +105,9 @@ export default function DiagnosticScreen() {
 
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [selectedOptionIds, setSelectedOptionIds] = useState<Record<number, string>>({});
-  const [isCalibrating, setIsCalibrating] = useState(false);
+  const [isFinishing, setIsFinishing] = useState(false);
 
-  const step = DIAGNOSTIC_STEPS[currentStepIndex];
+  const currentQ = QUESTIONS[currentStepIndex];
   const selectedOptionId = selectedOptionIds[currentStepIndex];
 
   const handleSelectOption = (id: string) => {
@@ -141,6 +122,39 @@ export default function DiagnosticScreen() {
     }));
   };
 
+  const handleNextStep = () => {
+    if (!selectedOptionId || isFinishing) return;
+
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {
+      // safe fallback
+    }
+
+    if (currentStepIndex < QUESTIONS.length - 1) {
+      setCurrentStepIndex((prev) => prev + 1);
+    } else {
+      setIsFinishing(true);
+
+      const aggregatedDeltas: Partial<Record<TraitKey, number>> = {};
+      QUESTIONS.forEach((q, idx) => {
+        const chosenId = selectedOptionIds[idx];
+        const chosenOpt = q.options.find((o) => o.id === chosenId);
+        if (chosenOpt && chosenOpt.traitDeltas) {
+          (Object.keys(chosenOpt.traitDeltas) as TraitKey[]).forEach((trait) => {
+            aggregatedDeltas[trait] = (aggregatedDeltas[trait] ?? 0) + (chosenOpt.traitDeltas[trait] ?? 0);
+          });
+        }
+      });
+
+      setTimeout(() => {
+        completeDiagnostic(aggregatedDeltas);
+        setIsFinishing(false);
+        router.replace('/(tabs)');
+      }, 700);
+    }
+  };
+
   const handleSkip = () => {
     try {
       Haptics.selectionAsync();
@@ -151,84 +165,41 @@ export default function DiagnosticScreen() {
     router.replace('/(tabs)');
   };
 
-  const handleConfirmStep = () => {
-    if (!selectedOptionId || isCalibrating) return;
-
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch {
-      // safe fallback
-    }
-
-    if (currentStepIndex < DIAGNOSTIC_STEPS.length - 1) {
-      setCurrentStepIndex((prev) => prev + 1);
-    } else {
-      // Final step -> Calibrate
-      setIsCalibrating(true);
-
-      // Aggregate all trait deltas
-      const aggregatedDeltas: Partial<Record<TraitKey, number>> = {};
-      DIAGNOSTIC_STEPS.forEach((s, idx) => {
-        const chosenId = selectedOptionIds[idx];
-        const chosenOpt = s.options.find((o) => o.id === chosenId);
-        if (chosenOpt && chosenOpt.traitDeltas) {
-          (Object.keys(chosenOpt.traitDeltas) as TraitKey[]).forEach((trait) => {
-            aggregatedDeltas[trait] = (aggregatedDeltas[trait] ?? 0) + (chosenOpt.traitDeltas[trait] ?? 0);
-          });
-        }
-      });
-
-      setTimeout(() => {
-        completeDiagnostic(aggregatedDeltas);
-        setIsCalibrating(false);
-
-        try {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch {
-          // safe fallback
-        }
-
-        router.replace('/(tabs)');
-      }, 900);
-    }
-  };
-
   return (
     <View style={styles.root}>
-      {/* Top Header */}
+      {/* Header */}
       <View
         style={[
           styles.header,
           {
-            paddingTop: Math.max(insets.top + 8, 20),
+            paddingTop: Math.max(insets.top + 8, 18),
           },
         ]}
       >
         <View style={styles.headerTopRow}>
-          <Text style={styles.assessmentCode}>
-            ASSESSMENT // STEP 0{currentStepIndex + 1} OF 03
+          <Text style={styles.stepTitle}>
+            Quick Character Check (Step {currentStepIndex + 1} of 3)
           </Text>
-          <Pressable onPress={handleSkip} hitSlop={12} style={styles.skipBtn}>
-            <Text style={styles.skipText}>SKIP</Text>
+          <Pressable onPress={handleSkip} hitSlop={10}>
+            <Text style={styles.skipText}>Skip</Text>
           </Pressable>
         </View>
 
+        <Text style={styles.stepSubtitle}>
+          Answer 3 quick questions to set your starting scores.
+        </Text>
+
         {/* 3-segment Progress Bar */}
-        <View style={styles.segmentRow}>
-          {DIAGNOSTIC_STEPS.map((_, idx) => {
-            const isCompleted = idx < currentStepIndex;
-            const isCurrent = idx === currentStepIndex;
-            return (
-              <View
-                key={idx}
-                style={[
-                  styles.segment,
-                  isCompleted && styles.segmentCompleted,
-                  isCurrent && styles.segmentCurrent,
-                ]}
-              />
-            );
-          })}
+        <View style={styles.progressBar}>
+          {[0, 1, 2].map((idx) => (
+            <View
+              key={idx}
+              style={[
+                styles.segment,
+                idx <= currentStepIndex ? styles.segmentActive : styles.segmentInactive,
+              ]}
+            />
+          ))}
         </View>
       </View>
 
@@ -237,21 +208,12 @@ export default function DiagnosticScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Category Pill */}
-        <View style={styles.categoryPill}>
-          <AppIcon name="radar" size={13} color={colors.primary} />
-          <Text style={styles.categoryText}>{step.category}</Text>
-        </View>
+        {/* Question Text */}
+        <Text style={styles.questionText}>{currentQ.question}</Text>
 
-        {/* Question Title & Subtitle */}
-        <View style={styles.questionBlock}>
-          <Text style={styles.questionTitle}>{step.question}</Text>
-          <Text style={styles.questionSub}>{step.subContext}</Text>
-        </View>
-
-        {/* Options List */}
+        {/* Numbered Options */}
         <View style={styles.optionsList}>
-          {step.options.map((opt) => {
+          {currentQ.options.map((opt) => {
             const isSelected = selectedOptionId === opt.id;
             return (
               <Pressable
@@ -262,43 +224,37 @@ export default function DiagnosticScreen() {
                   isSelected && styles.optionCardSelected,
                 ]}
               >
-                <View style={styles.optionTopRow}>
-                  <View
+                <View
+                  style={[
+                    styles.numberBadge,
+                    isSelected && styles.numberBadgeSelected,
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.indexCircle,
-                      isSelected && styles.indexCircleSelected,
+                      styles.numberText,
+                      isSelected && styles.numberTextSelected,
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.indexCodeText,
-                        isSelected && styles.indexCodeTextSelected,
-                      ]}
-                    >
-                      {opt.indexCode}
-                    </Text>
-                  </View>
-
-                  <View style={styles.impactBadge}>
-                    <Text style={styles.impactBadgeText}>{opt.impactTag}</Text>
-                  </View>
+                    {opt.number}
+                  </Text>
                 </View>
 
-                <Text style={styles.optionLabel}>{opt.label}</Text>
-
-                {isSelected && (
-                  <View style={styles.selectedMarker}>
-                    <AppIcon name="check_circle" size={14} color={colors.primary} />
-                    <Text style={styles.selectedMarkerText}>POSTURE SELECTED</Text>
-                  </View>
-                )}
+                <Text
+                  style={[
+                    styles.optionLabel,
+                    isSelected && styles.optionLabelSelected,
+                  ]}
+                >
+                  {opt.label}
+                </Text>
               </Pressable>
             );
           })}
         </View>
       </ScrollView>
 
-      {/* Bottom Action Button */}
+      {/* Footer */}
       <View
         style={[
           styles.footer,
@@ -308,28 +264,19 @@ export default function DiagnosticScreen() {
         ]}
       >
         <Pressable
-          onPress={handleConfirmStep}
-          disabled={!selectedOptionId || isCalibrating}
+          onPress={handleNextStep}
+          disabled={!selectedOptionId || isFinishing}
           style={[
             styles.ctaButton,
-            (!selectedOptionId || isCalibrating) && styles.ctaButtonDisabled,
+            (!selectedOptionId || isFinishing) && styles.ctaDisabled,
           ]}
         >
-          {isCalibrating ? (
-            <View style={styles.btnRow}>
-              <ActivityIndicator size="small" color={colors.onPrimary} />
-              <Text style={styles.ctaButtonText}>
-                CALIBRATING 5-VECTOR RADAR...
-              </Text>
-            </View>
+          {isFinishing ? (
+            <LoadingDots size={6} color="#09090B" />
           ) : (
-            <View style={styles.btnRow}>
-              <Text style={styles.ctaButtonText}>
-                {currentStepIndex === 2
-                  ? 'Complete Calibration & Enter Codex →'
-                  : 'Confirm Tactical Posture →'}
-              </Text>
-            </View>
+            <Text style={styles.ctaText}>
+              {currentStepIndex === 2 ? 'Finish Setup →' : 'Next Question →'}
+            </Text>
           )}
         </Pressable>
       </View>
@@ -340,202 +287,140 @@ export default function DiagnosticScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#09090B',
   },
   header: {
     paddingHorizontal: 24,
-    paddingBottom: 14,
-    gap: 12,
+    paddingBottom: 16,
+    gap: 8,
     borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant,
+    borderBottomColor: '#27272A',
   },
   headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  assessmentCode: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: colors.primary,
-    letterSpacing: 1.6,
-  },
-  skipBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+  stepTitle: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 12,
+    color: '#FAFAFA',
+    letterSpacing: 0.6,
   },
   skipText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-    letterSpacing: 1.2,
+    fontFamily: fonts.label,
+    fontSize: 12,
+    color: '#71717A',
   },
-  segmentRow: {
+  stepSubtitle: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: '#A1A1AA',
+  },
+  progressBar: {
     flexDirection: 'row',
     gap: 8,
+    marginTop: 6,
   },
   segment: {
     flex: 1,
     height: 3,
-    backgroundColor: colors.surfaceContainerHighest,
     borderRadius: 2,
   },
-  segmentCompleted: {
-    backgroundColor: colors.primary,
+  segmentActive: {
+    backgroundColor: '#FFFFFF',
   },
-  segmentCurrent: {
-    backgroundColor: colors.primary,
+  segmentInactive: {
+    backgroundColor: '#27272A',
   },
   scroll: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 20,
-    gap: 18,
+    paddingTop: 24,
+    paddingBottom: 24,
+    gap: 20,
   },
-  categoryPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(242, 202, 80, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(242, 202, 80, 0.3)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  categoryText: {
-    fontFamily: fonts.mono,
-    fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 1.2,
-  },
-  questionBlock: {
-    gap: 8,
-  },
-  questionTitle: {
+  questionText: {
     fontFamily: fonts.display,
     fontSize: 22,
-    color: colors.onSurface,
+    color: '#FAFAFA',
     lineHeight: 30,
-  },
-  questionSub: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.onSurfaceVariant,
-    lineHeight: 18,
   },
   optionsList: {
     gap: 12,
   },
   optionCard: {
-    backgroundColor: colors.surfaceContainerLow,
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 16,
+    borderColor: '#27272A',
+    borderRadius: 14,
     padding: 16,
-    gap: 10,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
   },
   optionCardSelected: {
-    backgroundColor: colors.surfaceContainerHigh,
-    borderColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 4,
+    backgroundColor: '#18181B',
+    borderColor: '#FFFFFF',
   },
-  optionTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  indexCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceContainerLowest,
+  numberBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: '#27272A',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  indexCircleSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  numberBadgeSelected: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
-  indexCodeText: {
+  numberText: {
     fontFamily: fonts.labelSemiBold,
-    fontSize: 10,
-    color: colors.primary,
+    fontSize: 11,
+    color: '#A1A1AA',
   },
-  indexCodeTextSelected: {
-    color: colors.onPrimary,
-  },
-  impactBadge: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  impactBadgeText: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 0.6,
+  numberTextSelected: {
+    color: '#09090B',
   },
   optionLabel: {
+    flex: 1,
     fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.onSurface,
+    fontSize: 14,
+    color: '#D4D4D8',
     lineHeight: 20,
+    marginTop: 3,
   },
-  selectedMarker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: colors.outlineVariant,
-  },
-  selectedMarkerText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 1,
+  optionLabelSelected: {
+    color: '#FAFAFA',
+    fontFamily: fonts.bodyMedium,
   },
   footer: {
     paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: colors.outlineVariant,
-    backgroundColor: colors.surface,
+    borderTopColor: '#27272A',
+    backgroundColor: '#09090B',
   },
   ctaButton: {
-    height: 54,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
+    height: 52,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaButtonDisabled: {
-    opacity: 0.4,
+  ctaDisabled: {
+    opacity: 0.35,
   },
-  btnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  ctaButtonText: {
+  ctaText: {
     fontFamily: fonts.labelSemiBold,
-    fontSize: 12,
-    color: colors.onPrimary,
-    letterSpacing: 1,
+    fontSize: 13,
+    color: '#09090B',
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
 });

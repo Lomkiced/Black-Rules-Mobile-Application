@@ -5,14 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import Svg, { Polygon } from 'react-native-svg';
 import { AppIcon } from '../components/ui/AppIcon';
-import { colors, fonts } from '../theme/tokens';
+import { LoadingDots } from '../components/ui/LoadingOverlay';
+import { fonts } from '../theme/tokens';
 import { useUserStore } from '../store/useUserStore';
 
 type PlanType = 'annual' | 'monthly';
@@ -55,7 +54,7 @@ export default function PaywallScreen() {
       setTimeout(() => {
         router.back();
       }, 700);
-    }, 1000);
+    }, 800);
   };
 
   const handlePurchase = () => {
@@ -76,7 +75,7 @@ export default function PaywallScreen() {
         // fallback
       }
       router.back();
-    }, 900);
+    }, 700);
   };
 
   return (
@@ -105,8 +104,8 @@ export default function PaywallScreen() {
           </Text>
         </Pressable>
 
-        <View style={styles.tierSovereignBadge}>
-          <Text style={styles.tierSovereignText}>TIER SOVEREIGN</Text>
+        <View style={styles.tierBadge}>
+          <Text style={styles.tierBadgeText}>SOVEREIGN PRO</Text>
         </View>
 
         <Pressable
@@ -115,7 +114,7 @@ export default function PaywallScreen() {
           style={styles.closeBtn}
           accessibilityLabel="Close"
         >
-          <AppIcon name="close" size={20} color={colors.onSurfaceVariant} />
+          <AppIcon name="close" size={18} color="#FAFAFA" />
         </Pressable>
       </View>
 
@@ -131,79 +130,55 @@ export default function PaywallScreen() {
       >
         {/* Hero Section */}
         <View style={styles.heroSection}>
-          <Text style={styles.heroSub}>MEMBERSHIP ELEVATION // THE STRATEGIST</Text>
-          <Text style={styles.heroTitle}>Master the Unspoken Laws of Human Nature</Text>
-        </View>
-
-        {/* Visual Proof Emblem Card */}
-        <View style={styles.emblemCard}>
-          <View style={styles.emblemTextGroup}>
-            <Text style={styles.emblemLabel}>UNRESTRICTED DOSSIER</Text>
-            <Text style={styles.emblemTitle}>CODEX // 100 OF 100 UNLOCKED</Text>
-            <Text style={styles.emblemDesc}>
-              Complete declassification of deceptive signals, power dynamics, and social defense maneuvers.
-            </Text>
-          </View>
-
-          {/* Miniature Radar SVG */}
-          <View style={styles.miniRadarContainer}>
-            <Svg width={72} height={72} viewBox="0 0 72 72">
-              <Polygon
-                points="36,6 64.5,26.7 53.6,60.3 18.4,60.3 7.5,26.7"
-                stroke={colors.outlineVariant}
-                strokeWidth={1}
-                fill="rgba(32, 31, 34, 0.4)"
-              />
-              <Polygon
-                points="36,16 57,32 49,54 23,54 15,32"
-                stroke={colors.primary}
-                strokeWidth={1.5}
-                fill="rgba(242, 202, 80, 0.2)"
-              />
-            </Svg>
-          </View>
+          <Text style={styles.heroSub}>UNRESTRICTED ACCESS</Text>
+          <Text style={styles.heroTitle}>
+            Master Every Law of Human Nature
+          </Text>
+          <Text style={styles.heroDescription}>
+            Get full access to all 12 Black Rules, premium practice scenarios, unlimited AI Coach sessions, and continuous character telemetry.
+          </Text>
         </View>
 
         {/* 3 Benefit Rows */}
         <View style={styles.benefitsSection}>
           <View style={styles.benefitRow}>
             <View style={styles.benefitIcon}>
-              <AppIcon name="auto_stories" size={16} color={colors.primary} />
+              <AppIcon name="auto_stories" size={15} color="#09090B" />
             </View>
             <View style={styles.benefitTextGroup}>
-              <Text style={styles.benefitTitle}>100+ Strategic Laws & Defenses</Text>
+              <Text style={styles.benefitTitle}>All 12 Black Rules & Defenses</Text>
               <Text style={styles.benefitDesc}>
-                Full breakdown, psychological trap warnings, and reverse tactics.
+                Reading People, Office Strategy, and complete psychological mechanics.
               </Text>
             </View>
           </View>
 
           <View style={styles.benefitRow}>
             <View style={styles.benefitIcon}>
-              <AppIcon name="swords" size={16} color={colors.primary} />
+              <AppIcon name="swords" size={15} color="#09090B" />
             </View>
             <View style={styles.benefitTextGroup}>
-              <Text style={styles.benefitTitle}>Unlimited Arena Simulations</Text>
+              <Text style={styles.benefitTitle}>Advanced Practice Scenarios</Text>
               <Text style={styles.benefitDesc}>
-                High-pressure boardroom scenarios with live EXP calibration.
+                Realistic dilemmas on public ambushes, disrespectful jokes, and credit theft.
               </Text>
             </View>
           </View>
 
           <View style={styles.benefitRow}>
             <View style={styles.benefitIcon}>
-              <AppIcon name="radar" size={16} color={colors.primary} />
+              <AppIcon name="bolt" size={15} color="#09090B" />
             </View>
             <View style={styles.benefitTextGroup}>
-              <Text style={styles.benefitTitle}>Character Radar & Blind-Spot Analytics</Text>
+              <Text style={styles.benefitTitle}>Unlimited AI Coach Consultations</Text>
               <Text style={styles.benefitDesc}>
-                Continuous 5-trait tracking with vulnerability diagnosis.
+                Instant verbal defense scripts and tactical framing for any real-life situation.
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Interactive Plan Matrix: 2 Side-by-Side Cards */}
+        {/* Plan Cards */}
         <View style={styles.planMatrix}>
           {/* Annual Card */}
           <Pressable
@@ -214,8 +189,8 @@ export default function PaywallScreen() {
             ]}
           >
             <View style={styles.planBadgeRow}>
-              <View style={styles.discountBadge}>
-                <Text style={styles.discountBadgeText}>SAVE 50%</Text>
+              <View style={styles.saveBadge}>
+                <Text style={styles.saveBadgeText}>SAVE 50%</Text>
               </View>
               <View
                 style={[
@@ -227,7 +202,7 @@ export default function PaywallScreen() {
               </View>
             </View>
 
-            <Text style={styles.planCadence}>ANNUAL CLEARANCE</Text>
+            <Text style={styles.planCadence}>ANNUAL PASS</Text>
             <Text style={styles.planPrice}>$29.99</Text>
             <Text style={styles.planSubtext}>per year ($2.50/mo)</Text>
           </Pressable>
@@ -262,32 +237,23 @@ export default function PaywallScreen() {
         <Pressable
           onPress={handlePurchase}
           disabled={isAuthorizing}
-          style={[
-            styles.ctaButton,
-            isAuthorizing && styles.ctaButtonDisabled,
-          ]}
+          style={[styles.ctaButton, isAuthorizing && styles.ctaButtonDisabled]}
         >
           {isAuthorizing ? (
-            <View style={styles.ctaRow}>
-              <ActivityIndicator size="small" color={colors.onPrimary} />
-              <Text style={styles.ctaText}>SECURING SOVEREIGN CLEARANCE...</Text>
-            </View>
+            <LoadingDots size={6} color="#09090B" />
           ) : (
-            <View style={styles.ctaRow}>
-              <Text style={styles.ctaText}>
-                {selectedPlan === 'annual'
-                  ? 'Start 7-Day Free Trial'
-                  : 'Unlock Monthly Access'}
-              </Text>
-              <AppIcon name="arrow_forward" size={16} color={colors.onPrimary} />
-            </View>
+            <Text style={styles.ctaText}>
+              {selectedPlan === 'annual'
+                ? 'Start 7-Day Free Trial →'
+                : 'Unlock Monthly Access →'}
+            </Text>
           )}
         </Pressable>
 
         <Text style={styles.footerNote}>
           {selectedPlan === 'annual'
-            ? '7 days free, then $29.99/yr. Cancel anytime in App Store.'
-            : '$4.99/month. Cancel anytime in App Store.'}
+            ? '7 days free, then $29.99/year. Cancel anytime.'
+            : '$4.99/month. Cancel anytime.'}
         </Text>
       </ScrollView>
     </View>
@@ -297,16 +263,16 @@ export default function PaywallScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#09090B',
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(19, 19, 21, 0.94)',
+    backgroundColor: 'rgba(9, 9, 11, 0.95)',
     borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant,
+    borderBottomColor: '#27272A',
   },
   restoreBtn: {
     paddingVertical: 6,
@@ -314,21 +280,21 @@ const styles = StyleSheet.create({
   restoreText: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.primary,
+    color: '#A1A1AA',
     letterSpacing: 0.5,
   },
-  tierSovereignBadge: {
-    backgroundColor: 'rgba(242, 202, 80, 0.1)',
+  tierBadge: {
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: '#27272A',
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 9999,
   },
-  tierSovereignText: {
+  tierBadgeText: {
     fontFamily: fonts.label,
     fontSize: 9,
-    color: colors.primary,
+    color: '#FAFAFA',
     letterSpacing: 1,
   },
   closeBtn: {
@@ -338,7 +304,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 16,
     gap: 18,
   },
@@ -348,58 +314,27 @@ const styles = StyleSheet.create({
   heroSub: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.primary,
-    letterSpacing: 1.4,
+    color: '#71717A',
+    letterSpacing: 1.2,
   },
   heroTitle: {
     fontFamily: fonts.display,
     fontSize: 24,
-    color: colors.onSurface,
+    color: '#FAFAFA',
     lineHeight: 30,
   },
-  emblemCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-  },
-  emblemTextGroup: {
-    flex: 1,
-    gap: 4,
-  },
-  emblemLabel: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.outline,
-    letterSpacing: 1,
-  },
-  emblemTitle: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 12,
-    color: colors.primary,
-    letterSpacing: 0.8,
-  },
-  emblemDesc: {
+  heroDescription: {
     fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-    lineHeight: 16,
-  },
-  miniRadarContainer: {
-    width: 72,
-    height: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
+    fontSize: 13,
+    color: '#A1A1AA',
+    lineHeight: 19,
+    marginTop: 2,
   },
   benefitsSection: {
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 16,
+    borderColor: '#27272A',
+    borderRadius: 14,
     padding: 16,
     gap: 14,
   },
@@ -409,13 +344,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   benefitIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: 'rgba(242, 202, 80, 0.12)',
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    marginTop: 1,
   },
   benefitTextGroup: {
     flex: 1,
@@ -423,14 +358,14 @@ const styles = StyleSheet.create({
   },
   benefitTitle: {
     fontFamily: fonts.headlineMedium,
-    fontSize: 13,
-    color: colors.onSurface,
+    fontSize: 14,
+    color: '#FAFAFA',
   },
   benefitDesc: {
     fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-    lineHeight: 15,
+    fontSize: 12,
+    color: '#A1A1AA',
+    lineHeight: 16,
   },
   planMatrix: {
     flexDirection: 'row',
@@ -438,103 +373,96 @@ const styles = StyleSheet.create({
   },
   planCard: {
     flex: 1,
-    backgroundColor: colors.surfaceContainerLow,
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 16,
+    borderColor: '#27272A',
+    borderRadius: 14,
     padding: 14,
     gap: 6,
   },
   planCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.surfaceContainer,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#18181B',
   },
   planBadgeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: 22,
   },
-  discountBadge: {
-    backgroundColor: colors.primary,
+  saveBadge: {
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  discountBadgeText: {
+  saveBadgeText: {
     fontFamily: fonts.labelSemiBold,
-    fontSize: 9,
-    color: colors.onPrimary,
+    fontSize: 8,
+    color: '#09090B',
   },
   flexibleTag: {
     fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.outline,
+    fontSize: 8,
+    color: '#71717A',
   },
   radioCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: colors.outline,
+    borderColor: '#71717A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   radioCircleActive: {
-    borderColor: colors.primary,
+    borderColor: '#FFFFFF',
   },
   radioInnerDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    backgroundColor: colors.primary,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FFFFFF',
   },
   planCadence: {
     fontFamily: fonts.label,
     fontSize: 9,
-    color: colors.primary,
+    color: '#71717A',
     letterSpacing: 0.8,
-    marginTop: 4,
+    marginTop: 2,
   },
   planPrice: {
-    fontFamily: fonts.display,
-    fontSize: 24,
-    color: colors.onSurface,
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 22,
+    color: '#FAFAFA',
   },
   planSubtext: {
     fontFamily: fonts.body,
-    fontSize: 10,
-    color: colors.onSurfaceVariant,
+    fontSize: 11,
+    color: '#A1A1AA',
   },
   ctaButton: {
-    height: 54,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
+    height: 52,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
     marginTop: 4,
   },
   ctaButtonDisabled: {
-    opacity: 0.8,
-  },
-  ctaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    opacity: 0.5,
   },
   ctaText: {
     fontFamily: fonts.labelSemiBold,
-    fontSize: 12,
-    color: colors.onPrimary,
-    letterSpacing: 1,
+    fontSize: 13,
+    color: '#09090B',
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   footerNote: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.outline,
+    color: '#71717A',
     textAlign: 'center',
-    letterSpacing: 0.4,
+    lineHeight: 14,
   },
 });

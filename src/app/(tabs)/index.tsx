@@ -1,19 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { TopAppBar } from '../../components/ui/TopAppBar';
 import { AppIcon } from '../../components/ui/AppIcon';
+import { PixelArtBanner } from '../../components/ui/PixelArtBanner';
 import { colors, fonts } from '../../theme/tokens';
 import { useUserStore } from '../../store/useUserStore';
 import { DAILY_DRILLS, CURRICULUMS } from '../../store/mockData';
 
 export default function DailyShadowScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   const {
+    operativeName,
     streak,
     streakCount,
     isChallengeCompleted,
@@ -27,22 +27,21 @@ export default function DailyShadowScreen() {
 
   const activeStreak = streak || streakCount || 14;
 
-  // Hero Card: First unmastered rule or Rule 12 by default
+  // Rule of the Day: first unmastered rule or Rule 01
   const heroRule =
     rules.find((r) => !masteredRuleIds.includes(r.id)) ||
-    rules.find((r) => r.id === '12') ||
     rules[0];
 
   const isHeroMastered = masteredRuleIds.includes(heroRule.id);
 
-  // Today's Micro-Challenge: bound to currentDrillIndex
+  // Today's Daily Habit
   const safeDrillIndex = Math.abs(currentDrillIndex || 0) % DAILY_DRILLS.length;
   const currentDrill = DAILY_DRILLS[safeDrillIndex] || DAILY_DRILLS[0];
 
-  // Active Curriculums: top 3
-  const activeCurriculums = (curriculums && curriculums.length > 0 ? curriculums : CURRICULUMS).slice(0, 3);
+  // Categories list
+  const activeCurriculums = curriculums && curriculums.length > 0 ? curriculums : CURRICULUMS;
 
-  const handleToggleChallenge = () => {
+  const handleToggleHabit = () => {
     try {
       Haptics.notificationAsync(
         isChallengeCompleted
@@ -55,7 +54,7 @@ export default function DailyShadowScreen() {
     toggleChallenge();
   };
 
-  const handleCycleDrill = () => {
+  const handleNextHabit = () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {
@@ -64,7 +63,7 @@ export default function DailyShadowScreen() {
     nextDailyDrill();
   };
 
-  const handleHeroBriefingPress = () => {
+  const handleRulePress = () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {
@@ -73,16 +72,7 @@ export default function DailyShadowScreen() {
     router.push(`/(tabs)/codex/${heroRule.id}` as any);
   };
 
-  const handleAdvisorPress = () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch {
-      // safe fallback
-    }
-    router.push('/advisor' as any);
-  };
-
-  const handleViewAllCurriculums = () => {
+  const handleViewAllRules = () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {
@@ -93,7 +83,7 @@ export default function DailyShadowScreen() {
 
   return (
     <View style={styles.root}>
-      <TopAppBar title="Daily Shadow" />
+      <TopAppBar title="Today" />
 
       <ScrollView
         style={styles.scroll}
@@ -105,134 +95,79 @@ export default function DailyShadowScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Greeting & Psychological Posture */}
-        <View style={styles.greetingSection}>
-          <View style={styles.greetingHeaderRow}>
-            <View>
-              <Text style={styles.dispatchLabel}>TACTICAL DISPATCH</Text>
-              <Text style={styles.greetingTitle}>Good evening, Strategist</Text>
-            </View>
-
-            {/* Streak Badge */}
-            <View style={styles.streakBadge}>
-              <AppIcon name="local_fire_department" size={14} color={colors.primary} />
-              <Text style={styles.streakText}>{activeStreak}D STREAK</Text>
-            </View>
+        {/* Top Greeting & Streak */}
+        <View style={styles.greetingRow}>
+          <View>
+            <Text style={styles.greetingSub}>DAILY OVERVIEW</Text>
+            <Text style={styles.greetingTitle}>
+              Hello, {operativeName ? operativeName.split(' ')[0] : 'Strategist'}
+            </Text>
           </View>
 
-          {/* Psychological Posture Strip */}
-          <View style={styles.postureStrip}>
-            <View style={styles.postureDot} />
-            <Text style={styles.postureText}>
-              Today's psychological posture: <Text style={styles.postureHighlight}>Restraint over Reaction.</Text>
-            </Text>
+          <View style={styles.streakPill}>
+            <AppIcon name="local_fire_department" size={14} color="#FFFFFF" />
+            <Text style={styles.streakText}>{activeStreak} Day Streak</Text>
           </View>
         </View>
 
-        {/* Tactical AI Advisor Live Dilemma Banner */}
-        <Pressable
-          onPress={handleAdvisorPress}
-          style={styles.advisorCard}
-          accessibilityRole="button"
-        >
-          <View style={styles.advisorHeader}>
-            <View style={styles.advisorBadge}>
-              <View style={styles.advisorPulseDot} />
-              <Text style={styles.advisorBadgeText}>TACTICAL AI ADVISOR</Text>
-            </View>
-            <AppIcon name="bolt" size={16} color={colors.primary} />
-          </View>
+        {/* Rule of the Day Card */}
+        <View style={styles.ruleCard}>
+          {/* Pixel Art Banner */}
+          <PixelArtBanner
+            variant={heroRule.pixelVariant || 'shield'}
+            height={130}
+            showBorder={false}
+          />
 
-          <Text style={styles.advisorTitle}>ANALYZE LIVE DILEMMA</Text>
-          <Text style={styles.advisorSub}>
-            Simulate verbal defense scripts & power dynamics before high-stakes confrontations.
-          </Text>
-
-          <View style={styles.advisorFooter}>
-            <Text style={styles.advisorFooterText}>DISPATCH LIVE ADVISOR</Text>
-            <AppIcon name="arrow_forward" size={14} color={colors.primary} />
-          </View>
-        </Pressable>
-
-        {/* Hero Card: Dynamic Rule of the Day */}
-        <View style={styles.heroCard}>
-          {/* Top Gold Gradient Bar */}
-          <View style={styles.heroTopBar} />
-
-          <View style={styles.heroBody}>
-            <View style={styles.heroMetaRow}>
-              <Text style={styles.heroRuleCode}>
-                BLACK RULE // {heroRule.number} • {heroRule.category}
+          <View style={styles.ruleCardBody}>
+            <View style={styles.ruleMetaRow}>
+              <Text style={styles.ruleCode}>
+                RULE #{heroRule.number} • {heroRule.category}
               </Text>
-              <View style={[styles.axiomBadge, isHeroMastered && styles.masteredBadge]}>
-                <Text style={[styles.axiomBadgeText, isHeroMastered && styles.masteredBadgeText]}>
-                  {isHeroMastered ? 'MASTERED' : 'Axiom'}
-                </Text>
-              </View>
+              {isHeroMastered && (
+                <View style={styles.masteredBadge}>
+                  <Text style={styles.masteredBadgeText}>Learned</Text>
+                </View>
+              )}
             </View>
 
-            <Text style={styles.heroTitle}>{heroRule.title}</Text>
+            <Text style={styles.ruleTitle}>{heroRule.title}</Text>
+            <Text style={styles.ruleSummary}>{heroRule.summary}</Text>
 
-            {/* Tactical Metric Strip */}
-            <View style={styles.metricStrip}>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>TIER IMPACT SCORE</Text>
-                <View style={styles.metricValueRow}>
-                  <Text style={styles.metricValue}>{heroRule.impactScore}</Text>
-                  <Text style={styles.metricSub}>/ 10</Text>
-                </View>
-              </View>
-
-              <View style={styles.metricDivider} />
-
-              <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>ESTIMATED STUDY</Text>
-                <View style={styles.metricValueRow}>
-                  <Text style={styles.metricValue}>{heroRule.studyTime}</Text>
-                  <Text style={styles.metricSub}>Seconds</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Complete 2-Min Briefing CTA */}
+            {/* Crisp White Read Button */}
             <Pressable
-              onPress={handleHeroBriefingPress}
-              style={styles.heroCta}
+              onPress={handleRulePress}
+              style={styles.readButton}
               accessibilityRole="button"
             >
-              <Text style={styles.heroCtaText}>
-                {isHeroMastered ? 'Review 2-Min Briefing' : 'Complete 2-Min Briefing'}
+              <Text style={styles.readButtonText}>
+                {isHeroMastered ? 'Review Rule (2 min) →' : 'Read Full Rule (2 min) →'}
               </Text>
-              <AppIcon name="arrow_forward" size={16} color={colors.onPrimary} />
             </Pressable>
           </View>
         </View>
 
-        {/* Today's Micro-Challenge (Rotating Tactical Drill) */}
-        <View style={styles.challengeSection}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>TODAY'S MICRO-CHALLENGE</Text>
+        {/* Today's Daily Habit Card */}
+        <View style={styles.habitSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>TODAY'S DAILY HABIT</Text>
             <Pressable
-              onPress={handleCycleDrill}
-              style={styles.cycleDrillButton}
+              onPress={handleNextHabit}
+              style={styles.nextHabitBtn}
               accessibilityRole="button"
-              accessibilityLabel="Cycle Daily Drill"
             >
-              <AppIcon name="cached" size={13} color={colors.primary} />
-              <Text style={styles.cycleDrillText}>Cycle Drill ↻</Text>
+              <Text style={styles.nextHabitText}>Next Habit ↻</Text>
             </Pressable>
           </View>
 
           <Pressable
-            onPress={handleToggleChallenge}
+            onPress={handleToggleHabit}
             style={[
-              styles.challengeCard,
-              isChallengeCompleted && styles.challengeCardCompleted,
+              styles.habitCard,
+              isChallengeCompleted && styles.habitCardCompleted,
             ]}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: isChallengeCompleted }}
           >
-            {/* Custom Checkbox */}
+            {/* Custom Pixel Checkbox */}
             <View
               style={[
                 styles.checkbox,
@@ -240,22 +175,20 @@ export default function DailyShadowScreen() {
               ]}
             >
               {isChallengeCompleted && (
-                <AppIcon name="check" size={14} color={colors.onPrimary} strokeWidth={2.5} />
+                <AppIcon name="check" size={14} color="#09090B" strokeWidth={3} />
               )}
             </View>
 
-            <View style={styles.challengeContent}>
-              <View style={styles.drillMetaRow}>
-                <Text style={styles.drillProtocolTag}>{currentDrill.protocolTag}</Text>
-                <View style={styles.drillRewardBadge}>
-                  <Text style={styles.drillRewardText}>+{currentDrill.expReward} EXP</Text>
-                </View>
+            <View style={styles.habitContent}>
+              <View style={styles.habitMetaRow}>
+                <Text style={styles.habitTag}>{currentDrill.protocolTag}</Text>
+                <Text style={styles.habitReward}>+{currentDrill.expReward} XP</Text>
               </View>
 
               <Text
                 style={[
-                  styles.challengeText,
-                  isChallengeCompleted && styles.challengeTextCompleted,
+                  styles.habitText,
+                  isChallengeCompleted && styles.habitTextCompleted,
                 ]}
               >
                 {currentDrill.text}
@@ -264,56 +197,48 @@ export default function DailyShadowScreen() {
           </Pressable>
         </View>
 
-        {/* Active Curriculums */}
-        <View style={styles.curriculumsSection}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>ACTIVE CURRICULUMS</Text>
-            <Pressable
-              onPress={handleViewAllCurriculums}
-              style={styles.viewAllButton}
-              accessibilityRole="button"
-            >
-              <Text style={styles.viewAllText}>View All →</Text>
+        {/* Categories Preview */}
+        <View style={styles.categoriesSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>CATEGORIES</Text>
+            <Pressable onPress={handleViewAllRules}>
+              <Text style={styles.viewAllText}>View All Rules →</Text>
             </Pressable>
           </View>
 
-          <View style={styles.curriculumsList}>
+          <View style={styles.categoriesList}>
             {activeCurriculums.map((curr) => {
-              const isMastered = masteredRuleIds.includes(curr.defaultRuleId);
-              const baseCount =
-                curr.id === 'curr-1'
-                  ? 12
-                  : curr.id === 'curr-2'
-                  ? 16
-                  : curr.id === 'curr-3'
-                  ? 7
-                  : curr.id === 'curr-5'
-                  ? 9
-                  : 5;
-              const count = Math.min(curr.totalRules, baseCount + (isMastered ? 1 : 0));
-              const percent = Math.min(100, Math.round((count / curr.totalRules) * 100));
+              // Calculate learned count for this curriculum
+              const categoryRules = rules.filter((r) =>
+                r.category.toUpperCase().includes(curr.tag.toUpperCase()) ||
+                curr.title.toUpperCase().includes(r.category.toUpperCase())
+              );
+              const totalRules = Math.max(categoryRules.length, curr.totalRules || 2);
+              const learned = categoryRules.filter((r) => masteredRuleIds.includes(r.id)).length;
+              const percent = Math.min(100, Math.round((learned / totalRules) * 100));
 
               return (
                 <Pressable
                   key={curr.id}
-                  onPress={handleViewAllCurriculums}
-                  style={styles.curriculumCard}
-                  accessibilityRole="button"
+                  onPress={handleViewAllRules}
+                  style={styles.categoryCard}
                 >
-                  <View style={styles.currTopRow}>
+                  <View style={styles.categoryTop}>
                     <View style={{ flex: 1, paddingRight: 8 }}>
-                      <Text style={styles.currTitle}>{curr.title}</Text>
-                      <Text style={styles.currSubtitle}>{curr.subtitle}</Text>
+                      <Text style={styles.categoryTitle}>{curr.title}</Text>
+                      <Text style={styles.categorySub}>{curr.subtitle}</Text>
                     </View>
-                    <Text style={styles.currPercent}>{percent}%</Text>
+                    <Text style={styles.categoryProgressText}>
+                      {learned} of {totalRules} Learned
+                    </Text>
                   </View>
 
                   {/* Progress Bar */}
-                  <View style={styles.currTrack}>
+                  <View style={styles.progressTrack}>
                     <View
                       style={[
-                        styles.currFill,
-                        { width: `${percent}%` },
+                        styles.progressFill,
+                        { width: `${Math.max(6, percent)}%` },
                       ]}
                     />
                   </View>
@@ -330,7 +255,7 @@ export default function DailyShadowScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#09090B',
   },
   scroll: {
     flex: 1,
@@ -338,187 +263,105 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    gap: 20,
+    gap: 22,
   },
-  greetingSection: {
-    gap: 12,
-  },
-  greetingHeaderRow: {
+  greetingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
-  dispatchLabel: {
+  greetingSub: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.primary,
-    letterSpacing: 1.4,
+    color: '#71717A',
+    letterSpacing: 1.2,
     marginBottom: 2,
   },
   greetingTitle: {
     fontFamily: fonts.display,
     fontSize: 22,
-    color: colors.onSurface,
+    color: '#FAFAFA',
   },
-  streakBadge: {
+  streakPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surfaceContainerLow,
+    gap: 5,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    borderColor: '#27272A',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 9999,
   },
   streakText: {
-    fontFamily: fonts.label,
-    fontSize: 10,
-    color: colors.primary,
-    letterSpacing: 0.8,
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 11,
+    color: '#FAFAFA',
+    letterSpacing: 0.5,
   },
-  postureStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.surfaceContainerLowest,
+  ruleCard: {
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  postureDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
-  },
-  postureText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.onSurfaceVariant,
-  },
-  postureHighlight: {
-    fontFamily: fonts.bodySemiBold,
-    color: colors.onSurface,
-  },
-  heroCard: {
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 18,
+    borderColor: '#27272A',
+    borderRadius: 16,
     overflow: 'hidden',
   },
-  heroTopBar: {
-    height: 4,
-    backgroundColor: colors.primary,
-  },
-  heroBody: {
+  ruleCardBody: {
     padding: 18,
-    gap: 14,
+    gap: 12,
   },
-  heroMetaRow: {
+  ruleMetaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  heroRuleCode: {
+  ruleCode: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.primary,
-    letterSpacing: 1.2,
-    flex: 1,
-    paddingRight: 8,
-  },
-  axiomBadge: {
-    backgroundColor: 'rgba(242, 202, 80, 0.15)',
-    borderWidth: 1,
-    borderColor: colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  axiomBadgeText: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.primary,
+    color: '#A1A1AA',
+    letterSpacing: 1,
   },
   masteredBadge: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#27272A',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
   masteredBadgeText: {
-    color: colors.onPrimary,
-    fontFamily: fonts.labelSemiBold,
-  },
-  heroTitle: {
-    fontFamily: fonts.display,
-    fontSize: 22,
-    color: colors.onSurface,
-    lineHeight: 28,
-  },
-  metricStrip: {
-    flexDirection: 'row',
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
-  metricItem: {
-    flex: 1,
-    gap: 2,
-  },
-  metricLabel: {
     fontFamily: fonts.label,
     fontSize: 9,
-    color: colors.outline,
-    letterSpacing: 0.8,
+    color: '#FAFAFA',
   },
-  metricValueRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
+  ruleTitle: {
+    fontFamily: fonts.display,
+    fontSize: 20,
+    color: '#FAFAFA',
+    lineHeight: 26,
   },
-  metricValue: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 17,
-    color: colors.primary,
+  ruleSummary: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: '#A1A1AA',
+    lineHeight: 19,
   },
-  metricSub: {
-    fontFamily: fonts.label,
-    fontSize: 11,
-    color: colors.outline,
-  },
-  metricDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: colors.outlineVariant,
-    marginHorizontal: 12,
-  },
-  heroCta: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
+  readButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    height: 46,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    marginTop: 4,
   },
-  heroCtaText: {
+  readButtonText: {
     fontFamily: fonts.labelSemiBold,
     fontSize: 12,
-    color: colors.onPrimary,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    color: '#09090B',
+    letterSpacing: 0.6,
   },
-  challengeSection: {
+  habitSection: {
     gap: 10,
   },
-  sectionHeaderRow: {
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -526,202 +369,125 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.outline,
+    color: '#71717A',
     letterSpacing: 1.2,
   },
-  cycleDrillButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(242, 202, 80, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(242, 202, 80, 0.3)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+  nextHabitBtn: {
+    paddingVertical: 2,
+    paddingHorizontal: 6,
   },
-  cycleDrillText: {
+  nextHabitText: {
     fontFamily: fonts.label,
-    fontSize: 10,
-    color: colors.primary,
-    letterSpacing: 0.5,
+    fontSize: 11,
+    color: '#FAFAFA',
   },
-  challengeCard: {
+  habitCard: {
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 14,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 14,
-    padding: 16,
   },
-  challengeCardCompleted: {
-    borderColor: 'rgba(242, 202, 80, 0.4)',
-    backgroundColor: colors.surfaceContainer,
+  habitCardCompleted: {
+    backgroundColor: '#18181B',
+    borderColor: '#3F3F46',
   },
   checkbox: {
     width: 22,
     height: 22,
-    borderRadius: 6,
+    borderRadius: 5,
     borderWidth: 1.5,
-    borderColor: colors.outline,
+    borderColor: '#71717A',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
   checkboxChecked: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
-  challengeContent: {
+  habitContent: {
     flex: 1,
     gap: 6,
   },
-  drillMetaRow: {
+  habitMetaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
   },
-  drillProtocolTag: {
+  habitTag: {
     fontFamily: fonts.label,
     fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 1,
-    flex: 1,
+    color: '#A1A1AA',
+    letterSpacing: 0.8,
   },
-  drillRewardBadge: {
-    backgroundColor: 'rgba(242, 202, 80, 0.15)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  drillRewardText: {
+  habitReward: {
     fontFamily: fonts.labelSemiBold,
     fontSize: 9,
-    color: colors.primary,
+    color: '#FFFFFF',
   },
-  challengeText: {
+  habitText: {
     fontFamily: fonts.body,
     fontSize: 13,
-    color: colors.onSurface,
+    color: '#FAFAFA',
     lineHeight: 19,
   },
-  challengeTextCompleted: {
-    color: colors.onSurfaceVariant,
+  habitTextCompleted: {
+    color: '#71717A',
     textDecorationLine: 'line-through',
   },
-  curriculumsSection: {
+  categoriesSection: {
     gap: 10,
-  },
-  viewAllButton: {
-    paddingVertical: 2,
-    paddingHorizontal: 4,
   },
   viewAllText: {
     fontFamily: fonts.label,
     fontSize: 11,
-    color: colors.primary,
-    letterSpacing: 0.8,
+    color: '#FAFAFA',
+    letterSpacing: 0.6,
   },
-  curriculumsList: {
+  categoriesList: {
     gap: 10,
   },
-  curriculumCard: {
-    backgroundColor: colors.surfaceContainerLow,
+  categoryCard: {
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: '#27272A',
     borderRadius: 14,
     padding: 16,
-    gap: 10,
+    gap: 12,
   },
-  currTopRow: {
+  categoryTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
-  currTitle: {
+  categoryTitle: {
     fontFamily: fonts.headlineMedium,
     fontSize: 15,
-    color: colors.onSurface,
+    color: '#FAFAFA',
   },
-  currSubtitle: {
+  categorySub: {
     fontFamily: fonts.body,
     fontSize: 12,
-    color: colors.onSurfaceVariant,
+    color: '#A1A1AA',
     marginTop: 2,
   },
-  currPercent: {
+  categoryProgressText: {
     fontFamily: fonts.label,
-    fontSize: 12,
-    color: colors.primary,
+    fontSize: 10,
+    color: '#71717A',
   },
-  currTrack: {
-    height: 4,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: 9999,
+  progressTrack: {
+    height: 3,
+    backgroundColor: '#050507',
+    borderRadius: 2,
     overflow: 'hidden',
   },
-  currFill: {
+  progressFill: {
     height: '100%',
-    backgroundColor: colors.primary,
-  },
-  advisorCard: {
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: 'rgba(242, 202, 80, 0.4)',
-    borderRadius: 16,
-    padding: 16,
-    gap: 8,
-  },
-  advisorHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  advisorBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(242, 202, 80, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  advisorPulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
-  },
-  advisorBadgeText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 9,
-    color: colors.primary,
-    letterSpacing: 1,
-  },
-  advisorTitle: {
-    fontFamily: fonts.headlineMedium,
-    fontSize: 16,
-    color: colors.onSurface,
-  },
-  advisorSub: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.onSurfaceVariant,
-    lineHeight: 18,
-  },
-  advisorFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-  },
-  advisorFooterText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 10,
-    color: colors.primary,
-    letterSpacing: 1,
+    backgroundColor: '#FFFFFF',
   },
 });

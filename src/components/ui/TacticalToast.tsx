@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { AppIcon } from './AppIcon';
-import { colors, fonts } from '../../theme/tokens';
+import { fonts } from '../../theme/tokens';
 import { useUserStore } from '../../store/useUserStore';
 
 export const TacticalToast: React.FC = () => {
@@ -40,7 +40,7 @@ export const TacticalToast: React.FC = () => {
     >
       <Pressable onPress={clearToast} style={styles.toastCard}>
         <View style={styles.glowDot} />
-        <AppIcon name="bolt" size={13} color={colors.primary} />
+        <AppIcon name="bolt" size={13} color="#FFFFFF" />
         <Text style={styles.toastText}>{lastToastMessage}</Text>
       </Pressable>
     </View>
@@ -61,28 +61,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.surfaceContainerHigh,
+    backgroundColor: '#18181B',
     borderWidth: 1,
-    borderColor: 'rgba(242, 202, 80, 0.6)',
+    borderColor: '#3F3F46',
     borderRadius: 9999,
     paddingHorizontal: 16,
     paddingVertical: 9,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
     elevation: 10,
   },
   glowDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.primary,
+    backgroundColor: '#FFFFFF',
   },
   toastText: {
     fontFamily: fonts.mono,
     fontSize: 10,
-    color: colors.primary,
+    color: '#FAFAFA',
     letterSpacing: 1,
   },
 });

@@ -36,6 +36,8 @@ export interface BlackRule {
   author: string;
   audioDuration: string;
   imageUrl: string;
+  pixelVariant?: 'chess' | 'shield' | 'scale' | 'eye' | 'crown' | 'key';
+  realLifeExample?: string;
 }
 
 /**

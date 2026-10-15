@@ -1,59 +1,59 @@
-import { View, Text, StyleSheet, ScrollView, Image, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { TopAppBar } from '../../components/ui/TopAppBar';
 import { AppIcon } from '../../components/ui/AppIcon';
 import { RadarChart } from '../../components/features/RadarChart';
+import { BMonogram } from '../../components/ui/BMonogram';
 import { colors, fonts } from '../../theme/tokens';
 import { useUserStore } from '../../store/useUserStore';
 import { TraitKey } from '../../types';
 
-const ELENA_AVATAR =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCrGG84acRosCC5hZ-eL73H6Ptl9iHaPEf11DlKHKInScqxXhEFhGr8i9juFcJ7DB94XJHaeaxtvvOGqxATmJpa27fMA5cLBS4uk6ad6HrkmqlTHg3i1H1ttqwCJ5vKuU5GzZVvrH2wIlfG1By_lv4bMOAJKWkqCauXwPKMBnuCqiWcJvwHIWyFlkDXEMC5blfRMcecNVJfYeVVxmDDQ8pWpKzok8P7BICPAMVqQygiXIZ8nF6W-e6z2w';
-
-interface TraitVelocityConfig {
+interface SkillConfig {
   key: TraitKey;
   label: string;
-  delta: string;
   desc: string;
 }
 
-const TRAIT_VELOCITIES: TraitVelocityConfig[] = [
+const SKILLS: SkillConfig[] = [
   {
     key: 'stoicism',
-    label: 'STOICISM',
-    delta: '+6.8%',
-    desc: 'Unwavering neutrality under boardroom duress.',
-  },
-  {
-    key: 'persuasion',
-    label: 'PERSUASION',
-    delta: '+3.4%',
-    desc: 'Subconscious anchoring and framing dominance.',
+    label: 'Self-Control',
+    desc: 'Remaining calm and neutral under sudden emotional pressure.',
   },
   {
     key: 'assertiveness',
-    label: 'ASSERTIVENESS',
-    delta: '+4.1%',
-    desc: 'Friction tolerance and boundary enforcement.',
+    label: 'Confidence',
+    desc: 'Setting firm boundaries and stating needs without apologizing.',
+  },
+  {
+    key: 'persuasion',
+    label: 'Persuasion',
+    desc: 'Framing discussions so others naturally agree with your position.',
   },
   {
     key: 'awareness',
-    label: 'AWARENESS',
-    delta: '+8.2%',
-    desc: 'Micro-expression reading and deception detection.',
+    label: 'Awareness',
+    desc: 'Spotting hidden motives, subtle body language, and unspoken agendas.',
   },
   {
     key: 'negotiation',
-    label: 'NEGOTIATION',
-    delta: '+1.9%',
-    desc: 'Information asymmetry and concession pacing.',
+    label: 'Negotiation',
+    desc: 'Using tactical silence and slow concessions to win optimal terms.',
   },
 ];
 
 export default function StatsScreen() {
   const router = useRouter();
-  const { stats, xp, levelTier, streak, scenariosWon, isPro } = useUserStore();
+  const {
+    operativeName,
+    stats,
+    xp,
+    levelTier,
+    streak,
+    masteredRuleIds,
+    isPro,
+  } = useUserStore();
 
   const handleUpgradePress = () => {
     try {
@@ -64,106 +64,91 @@ export default function StatsScreen() {
     router.push('/paywall');
   };
 
-  const xpPercentage = Math.min(100, Math.round((xp / 5000) * 100));
+  const initial = (operativeName || 'E').trim().charAt(0).toUpperCase();
 
   return (
     <View style={styles.root}>
-      <TopAppBar title="Stats" />
+      <TopAppBar title="Progress" />
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: 120,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Profile Card */}
+        {/* User Profile Card */}
         <View style={styles.profileCard}>
-          <View style={styles.profileHeaderRow}>
-            <View style={styles.avatarWrapper}>
-              <Image source={{ uri: ELENA_AVATAR }} style={styles.avatarImg} />
-              <View style={styles.verifiedBadge}>
-                <AppIcon name="verified" size={13} color={colors.primary} />
-              </View>
+          <View style={styles.profileHeader}>
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>{initial}</Text>
             </View>
 
             <View style={styles.profileInfo}>
               <View style={styles.tierPill}>
-                <Text style={styles.tierPillText}>{levelTier.toUpperCase()}</Text>
+                <Text style={styles.tierPillText}>
+                  {isPro ? 'SOVEREIGN PRO' : levelTier.toUpperCase()}
+                </Text>
               </View>
-              <Text style={styles.profileName}>Elena Vance</Text>
-              <Text style={styles.profileDesignation}>Lead Corporate Strategist</Text>
+              <Text style={styles.profileName}>{operativeName || 'Strategist'}</Text>
             </View>
           </View>
 
-          {/* Axiom Calibration XP bar */}
-          <View style={styles.calibrationSection}>
-            <View style={styles.calibrationRow}>
-              <Text style={styles.calibrationLabel}>AXIOM CALIBRATION</Text>
-              <Text style={styles.calibrationValue}>
-                {xpPercentage}% • {xp.toLocaleString()} / 5,000 XP
-              </Text>
-            </View>
-            <View style={styles.track}>
-              <View style={[styles.fill, { width: `${xpPercentage}%` }]} />
-            </View>
-          </View>
-
-          {/* 3-Column Metrics */}
+          {/* Quick Metrics Strip */}
           <View style={styles.metricsRow}>
-            <View style={styles.metricCol}>
-              <Text style={styles.metricNumber}>{scenariosWon}</Text>
-              <Text style={styles.metricLabel}>Scenarios Won</Text>
+            <View style={styles.metricItem}>
+              <Text style={styles.metricValue}>{xp.toLocaleString()}</Text>
+              <Text style={styles.metricLabel}>Total XP</Text>
             </View>
             <View style={styles.metricDivider} />
-            <View style={styles.metricCol}>
-              <Text style={styles.metricNumber}>{streak}D</Text>
-              <Text style={styles.metricLabel}>Streak Active</Text>
+            <View style={styles.metricItem}>
+              <Text style={styles.metricValue}>{masteredRuleIds.length}/12</Text>
+              <Text style={styles.metricLabel}>Rules Learned</Text>
             </View>
             <View style={styles.metricDivider} />
-            <View style={styles.metricCol}>
-              <Text style={styles.metricNumber}>94%</Text>
-              <Text style={styles.metricLabel}>Precision</Text>
+            <View style={styles.metricItem}>
+              <Text style={styles.metricValue}>{streak}D</Text>
+              <Text style={styles.metricLabel}>Daily Streak</Text>
             </View>
           </View>
         </View>
 
-        {/* High-Fidelity SVG Radar Chart Container */}
-        <View style={styles.chartContainer}>
+        {/* Monochrome SVG Radar Chart */}
+        <View style={styles.chartCard}>
           <View style={styles.chartHeader}>
-            <Text style={styles.chartTitle}>CHARACTER DEFENSE RADAR</Text>
-            <View style={styles.liveTag}>
-              <View style={styles.pulsingDot} />
-              <Text style={styles.liveText}>TELEMETRY LIVE</Text>
-            </View>
+            <Text style={styles.chartTitle}>5-TRAIT CHARACTER RADAR</Text>
           </View>
 
           <RadarChart stats={stats} />
         </View>
 
-        {/* Momentum Velocity List */}
-        <View style={styles.velocitySection}>
-          <Text style={styles.sectionHeader}>MOMENTUM VELOCITY</Text>
+        {/* Skill Score List (0–100%) */}
+        <View style={styles.skillsSection}>
+          <Text style={styles.sectionTitle}>SKILL SCORES</Text>
 
-          <View style={styles.velocityList}>
-            {TRAIT_VELOCITIES.map((item) => {
-              const currentScore = stats[item.key] ?? 50;
+          <View style={styles.skillsList}>
+            {SKILLS.map((skill) => {
+              const score = stats[skill.key] ?? 50;
 
               return (
-                <View key={item.key} style={styles.velocityCard}>
-                  <View style={styles.velocityTop}>
-                    <View style={styles.velocityLabelGroup}>
-                      <Text style={styles.velocityTitle}>{item.label}</Text>
-                      <View style={styles.deltaBadge}>
-                        <Text style={styles.deltaText}>{item.delta}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.velocityScore}>{currentScore}%</Text>
+                <View key={skill.key} style={styles.skillCard}>
+                  <View style={styles.skillTopRow}>
+                    <Text style={styles.skillName}>{skill.label}</Text>
+                    <Text style={styles.skillScore}>{score}%</Text>
                   </View>
 
-                  <Text style={styles.velocityDesc}>{item.desc}</Text>
+                  <Text style={styles.skillDesc}>{skill.desc}</Text>
 
-                  <View style={styles.velocityTrack}>
+                  {/* Progress Bar */}
+                  <View style={styles.skillTrack}>
                     <View
-                      style={[styles.velocityFill, { width: `${currentScore}%` }]}
+                      style={[
+                        styles.skillFill,
+                        { width: `${Math.max(5, score)}%` },
+                      ]}
                     />
                   </View>
                 </View>
@@ -172,26 +157,23 @@ export default function StatsScreen() {
           </View>
         </View>
 
-        {/* Inline Upgrade Banner */}
+        {/* Clean Upgrade to Pro Card */}
         {!isPro && (
-          <View style={styles.upgradeBannerCard}>
+          <View style={styles.upgradeCard}>
             <View style={styles.upgradeHeader}>
-              <AppIcon name="military_tech" size={20} color={colors.primary} />
-              <Text style={styles.upgradeTitle}>UNLOCK THE STRATEGIST PRO</Text>
+              <BMonogram size={24} />
+              <Text style={styles.upgradeTitle}>UPGRADE TO SOVEREIGN PRO</Text>
             </View>
 
             <Text style={styles.upgradeDesc}>
-              Deep psychological threat telemetry, full blind-spot diagnostic audit, and unrestricted access to 48 unredacted character laws.
+              Unlock all 12 Black Rules, premium practice scenarios, unlimited AI Coach queries, and deep character telemetry.
             </Text>
 
             <Pressable
               onPress={handleUpgradePress}
-              style={styles.upgradeCta}
+              style={styles.upgradeBtn}
             >
-              <Text style={styles.upgradeCtaText}>
-                Begin 7-Day Access Pass • $14.99/mo
-              </Text>
-              <AppIcon name="arrow_forward" size={16} color={colors.onPrimary} />
+              <Text style={styles.upgradeBtnText}>Upgrade to Pro →</Text>
             </Pressable>
           </View>
         )}
@@ -203,7 +185,7 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#09090B',
   },
   scroll: {
     flex: 1,
@@ -211,233 +193,161 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 120, // Clean clearance above floating tab bar
     gap: 18,
   },
   profileCard: {
-    backgroundColor: colors.surfaceContainerLow,
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 18,
+    borderColor: '#27272A',
+    borderRadius: 16,
     padding: 16,
     gap: 14,
   },
-  profileHeaderRow: {
+  profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
   },
-  avatarWrapper: {
-    position: 'relative',
-  },
-  avatarImg: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+  avatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#18181B',
     borderWidth: 1.5,
-    borderColor: 'rgba(242, 202, 80, 0.4)',
+    borderColor: '#3F3F46',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: colors.surface,
-    borderRadius: 9999,
-    padding: 2,
+  avatarText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 16,
+    color: '#FAFAFA',
   },
   profileInfo: {
     gap: 2,
   },
   tierPill: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(242, 202, 80, 0.12)',
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
-    borderWidth: 0.5,
-    borderColor: colors.primary,
   },
   tierPillText: {
     fontFamily: fonts.label,
     fontSize: 9,
-    color: colors.primary,
+    color: '#A1A1AA',
     letterSpacing: 0.8,
   },
   profileName: {
     fontFamily: fonts.display,
     fontSize: 18,
-    color: colors.onSurface,
-  },
-  profileDesignation: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-  },
-  calibrationSection: {
-    gap: 6,
-  },
-  calibrationRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  calibrationLabel: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.outline,
-    letterSpacing: 1,
-  },
-  calibrationValue: {
-    fontFamily: fonts.label,
-    fontSize: 10,
-    color: colors.primary,
-  },
-  track: {
-    height: 4,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: 9999,
-    overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    backgroundColor: colors.primary,
+    color: '#FAFAFA',
   },
   metricsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: colors.outlineVariant,
+    borderTopColor: '#27272A',
     paddingTop: 12,
   },
-  metricCol: {
+  metricItem: {
     alignItems: 'center',
     gap: 2,
   },
-  metricNumber: {
+  metricValue: {
     fontFamily: fonts.labelSemiBold,
-    fontSize: 16,
-    color: colors.primary,
+    fontSize: 15,
+    color: '#FAFAFA',
   },
   metricLabel: {
     fontFamily: fonts.body,
-    fontSize: 10,
-    color: colors.onSurfaceVariant,
+    fontSize: 11,
+    color: '#71717A',
   },
   metricDivider: {
     width: 1,
     height: 24,
-    backgroundColor: colors.outlineVariant,
+    backgroundColor: '#27272A',
   },
-  chartContainer: {
-    backgroundColor: colors.surfaceContainerLow,
+  chartCard: {
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: 18,
+    borderColor: '#27272A',
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   chartHeader: {
     width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   chartTitle: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.outline,
+    color: '#71717A',
     letterSpacing: 1.2,
   },
-  liveTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  pulsingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
-  },
-  liveText: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.primary,
-  },
-  velocitySection: {
+  skillsSection: {
     gap: 10,
   },
-  sectionHeader: {
+  sectionTitle: {
     fontFamily: fonts.label,
     fontSize: 10,
-    color: colors.outline,
+    color: '#71717A',
     letterSpacing: 1.2,
   },
-  velocityList: {
+  skillsList: {
     gap: 10,
   },
-  velocityCard: {
-    backgroundColor: colors.surfaceContainerLow,
+  skillCard: {
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: '#27272A',
     borderRadius: 14,
     padding: 14,
     gap: 6,
   },
-  velocityTop: {
+  skillTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  velocityLabelGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  skillName: {
+    fontFamily: fonts.headlineMedium,
+    fontSize: 14,
+    color: '#FAFAFA',
   },
-  velocityTitle: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 11,
-    color: colors.onSurface,
-    letterSpacing: 0.8,
-  },
-  deltaBadge: {
-    backgroundColor: 'rgba(242, 202, 80, 0.12)',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  deltaText: {
-    fontFamily: fonts.label,
-    fontSize: 9,
-    color: colors.primary,
-  },
-  velocityScore: {
+  skillScore: {
     fontFamily: fonts.labelSemiBold,
     fontSize: 13,
-    color: colors.primary,
+    color: '#FFFFFF',
   },
-  velocityDesc: {
+  skillDesc: {
     fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-    lineHeight: 15,
+    fontSize: 12,
+    color: '#A1A1AA',
+    lineHeight: 16,
   },
-  velocityTrack: {
+  skillTrack: {
     height: 3,
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: '#050507',
     borderRadius: 9999,
     overflow: 'hidden',
-    marginTop: 2,
+    marginTop: 4,
   },
-  velocityFill: {
+  skillFill: {
     height: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: '#FFFFFF',
   },
-  upgradeBannerCard: {
-    backgroundColor: colors.surfaceContainer,
+  upgradeCard: {
+    backgroundColor: '#121215',
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: '#3F3F46',
     borderRadius: 16,
     padding: 18,
     gap: 12,
@@ -450,30 +360,26 @@ const styles = StyleSheet.create({
   upgradeTitle: {
     fontFamily: fonts.labelSemiBold,
     fontSize: 11,
-    color: colors.primary,
-    letterSpacing: 1.2,
+    color: '#FAFAFA',
+    letterSpacing: 1,
   },
   upgradeDesc: {
     fontFamily: fonts.body,
     fontSize: 12,
-    color: colors.onSurfaceVariant,
+    color: '#A1A1AA',
     lineHeight: 18,
   },
-  upgradeCta: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
+  upgradeBtn: {
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
-  upgradeCtaText: {
+  upgradeBtnText: {
     fontFamily: fonts.labelSemiBold,
-    fontSize: 11,
-    color: colors.onPrimary,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    fontSize: 12,
+    color: '#09090B',
+    letterSpacing: 0.6,
   },
 });
