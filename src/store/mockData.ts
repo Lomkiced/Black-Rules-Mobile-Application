@@ -1,4 +1,4 @@
-import { BlackRule, CharacterStats, ArenaScenario, Curriculum } from '../types';
+import { BlackRule, CharacterStats, ArenaScenario, Curriculum, DailyDrill } from '../types';
 
 export const INITIAL_STATS: CharacterStats = {
   stoicism: 82,
@@ -398,6 +398,49 @@ export const ARENA_SCENARIOS: ArenaScenario[] = [
         traitDeltas: { stoicism: -8, persuasion: -5 },
       },
     ],
+  },
+];
+
+export const DAILY_DRILLS: DailyDrill[] = [
+  {
+    id: 'drill-1',
+    text: 'Wait 3 full seconds before replying to any provocative or urgent question today.',
+    protocolTag: '03S PROTOCOL: APPLIED RESTRAINT',
+    categoryTag: 'STOICISM',
+    expReward: 20,
+    traitKey: 'stoicism',
+  },
+  {
+    id: 'drill-2',
+    text: 'Hold unbroken eye contact during a greeting until the counterpart breaks away first.',
+    protocolTag: 'EYE-LEVEL ANCHOR: FRAME CONTROL',
+    categoryTag: 'ASSERTIVENESS',
+    expReward: 20,
+    traitKey: 'assertiveness',
+  },
+  {
+    id: 'drill-3',
+    text: 'Decline an impromptu request with zero justifications: "I will not be able to accommodate that."',
+    protocolTag: 'ZERO-JUSTIFICATION REFUSAL: BOUNDARIES',
+    categoryTag: 'ASSERTIVENESS',
+    expReward: 25,
+    traitKey: 'assertiveness',
+  },
+  {
+    id: 'drill-4',
+    text: 'Mirror the last 1–3 words of a colleague’s demand as an upward inquiry to trigger elaboration.',
+    protocolTag: 'MIRROR LAST 3 WORDS: ASYMMETRIC NEGOTIATION',
+    categoryTag: 'NEGOTIATION',
+    expReward: 25,
+    traitKey: 'negotiation',
+  },
+  {
+    id: 'drill-5',
+    text: 'Silently audit the room for closed arms, foot angles, and covert glances before delivering your point.',
+    protocolTag: 'CLOSED POSTURE AUDIT: SOCIAL AWARENESS',
+    categoryTag: 'AWARENESS',
+    expReward: 20,
+    traitKey: 'awareness',
   },
 ];
 

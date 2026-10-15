@@ -7,18 +7,40 @@ import { TopAppBar } from '../../components/ui/TopAppBar';
 import { AppIcon } from '../../components/ui/AppIcon';
 import { colors, fonts } from '../../theme/tokens';
 import { useUserStore } from '../../store/useUserStore';
+import { DAILY_DRILLS, CURRICULUMS } from '../../store/mockData';
 
 export default function DailyShadowScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
   const {
+    streak,
     streakCount,
     isChallengeCompleted,
     toggleChallenge,
+    currentDrillIndex,
+    nextDailyDrill,
     curriculums,
+    rules,
     masteredRuleIds,
   } = useUserStore();
+
+  const activeStreak = streak || streakCount || 14;
+
+  // Hero Card: First unmastered rule or Rule 12 by default
+  const heroRule =
+    rules.find((r) => !masteredRuleIds.includes(r.id)) ||
+    rules.find((r) => r.id === '12') ||
+    rules[0];
+
+  const isHeroMastered = masteredRuleIds.includes(heroRule.id);
+
+  // Today's Micro-Challenge: bound to currentDrillIndex
+  const safeDrillIndex = Math.abs(currentDrillIndex || 0) % DAILY_DRILLS.length;
+  const currentDrill = DAILY_DRILLS[safeDrillIndex] || DAILY_DRILLS[0];
+
+  // Active Curriculums: top 3
+  const activeCurriculums = (curriculums && curriculums.length > 0 ? curriculums : CURRICULUMS).slice(0, 3);
 
   const handleToggleChallenge = () => {
     try {
@@ -33,13 +55,22 @@ export default function DailyShadowScreen() {
     toggleChallenge();
   };
 
+  const handleCycleDrill = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      // safe fallback
+    }
+    nextDailyDrill();
+  };
+
   const handleHeroBriefingPress = () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {
       // safe fallback
     }
-    router.push('/(tabs)/codex/08');
+    router.push(`/(tabs)/codex/${heroRule.id}` as any);
   };
 
   const handleAdvisorPress = () => {
@@ -49,6 +80,15 @@ export default function DailyShadowScreen() {
       // safe fallback
     }
     router.push('/advisor' as any);
+  };
+
+  const handleViewAllCurriculums = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      // safe fallback
+    }
+    router.push('/(tabs)/codex' as any);
   };
 
   return (
@@ -76,7 +116,7 @@ export default function DailyShadowScreen() {
             {/* Streak Badge */}
             <View style={styles.streakBadge}>
               <AppIcon name="local_fire_department" size={14} color={colors.primary} />
-              <Text style={styles.streakText}>{streakCount}D STREAK</Text>
+              <Text style={styles.streakText}>{activeStreak}D STREAK</Text>
             </View>
           </View>
 
@@ -93,6 +133,7 @@ export default function DailyShadowScreen() {
         <Pressable
           onPress={handleAdvisorPress}
           style={styles.advisorCard}
+          accessibilityRole="button"
         >
           <View style={styles.advisorHeader}>
             <View style={styles.advisorBadge}>
@@ -113,27 +154,31 @@ export default function DailyShadowScreen() {
           </View>
         </Pressable>
 
-        {/* Hero Card: Black Rule // 012 */}
+        {/* Hero Card: Dynamic Rule of the Day */}
         <View style={styles.heroCard}>
           {/* Top Gold Gradient Bar */}
           <View style={styles.heroTopBar} />
 
           <View style={styles.heroBody}>
             <View style={styles.heroMetaRow}>
-              <Text style={styles.heroRuleCode}>BLACK RULE // 012 • NEGOTIATION</Text>
-              <View style={styles.axiomBadge}>
-                <Text style={styles.axiomBadgeText}>Axiom</Text>
+              <Text style={styles.heroRuleCode}>
+                BLACK RULE // {heroRule.number} • {heroRule.category}
+              </Text>
+              <View style={[styles.axiomBadge, isHeroMastered && styles.masteredBadge]}>
+                <Text style={[styles.axiomBadgeText, isHeroMastered && styles.masteredBadgeText]}>
+                  {isHeroMastered ? 'MASTERED' : 'Axiom'}
+                </Text>
               </View>
             </View>
 
-            <Text style={styles.heroTitle}>The Power of the Calculated Pause</Text>
+            <Text style={styles.heroTitle}>{heroRule.title}</Text>
 
             {/* Tactical Metric Strip */}
             <View style={styles.metricStrip}>
               <View style={styles.metricItem}>
                 <Text style={styles.metricLabel}>TIER IMPACT SCORE</Text>
                 <View style={styles.metricValueRow}>
-                  <Text style={styles.metricValue}>9.4</Text>
+                  <Text style={styles.metricValue}>{heroRule.impactScore}</Text>
                   <Text style={styles.metricSub}>/ 10</Text>
                 </View>
               </View>
@@ -143,7 +188,7 @@ export default function DailyShadowScreen() {
               <View style={styles.metricItem}>
                 <Text style={styles.metricLabel}>ESTIMATED STUDY</Text>
                 <View style={styles.metricValueRow}>
-                  <Text style={styles.metricValue}>120</Text>
+                  <Text style={styles.metricValue}>{heroRule.studyTime}</Text>
                   <Text style={styles.metricSub}>Seconds</Text>
                 </View>
               </View>
@@ -153,16 +198,30 @@ export default function DailyShadowScreen() {
             <Pressable
               onPress={handleHeroBriefingPress}
               style={styles.heroCta}
+              accessibilityRole="button"
             >
-              <Text style={styles.heroCtaText}>Complete 2-Min Briefing</Text>
+              <Text style={styles.heroCtaText}>
+                {isHeroMastered ? 'Review 2-Min Briefing' : 'Complete 2-Min Briefing'}
+              </Text>
               <AppIcon name="arrow_forward" size={16} color={colors.onPrimary} />
             </Pressable>
           </View>
         </View>
 
-        {/* Today's Micro-Challenge */}
+        {/* Today's Micro-Challenge (Rotating Tactical Drill) */}
         <View style={styles.challengeSection}>
-          <Text style={styles.sectionTitle}>TODAY'S MICRO-CHALLENGE</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>TODAY'S MICRO-CHALLENGE</Text>
+            <Pressable
+              onPress={handleCycleDrill}
+              style={styles.cycleDrillButton}
+              accessibilityRole="button"
+              accessibilityLabel="Cycle Daily Drill"
+            >
+              <AppIcon name="cached" size={13} color={colors.primary} />
+              <Text style={styles.cycleDrillText}>Cycle Drill ↻</Text>
+            </Pressable>
+          </View>
 
           <Pressable
             onPress={handleToggleChallenge}
@@ -170,6 +229,8 @@ export default function DailyShadowScreen() {
               styles.challengeCard,
               isChallengeCompleted && styles.challengeCardCompleted,
             ]}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: isChallengeCompleted }}
           >
             {/* Custom Checkbox */}
             <View
@@ -183,23 +244,41 @@ export default function DailyShadowScreen() {
               )}
             </View>
 
-            <Text
-              style={[
-                styles.challengeText,
-                isChallengeCompleted && styles.challengeTextCompleted,
-              ]}
-            >
-              Wait 3 full seconds before replying to a difficult or provoking question today.
-            </Text>
+            <View style={styles.challengeContent}>
+              <View style={styles.drillMetaRow}>
+                <Text style={styles.drillProtocolTag}>{currentDrill.protocolTag}</Text>
+                <View style={styles.drillRewardBadge}>
+                  <Text style={styles.drillRewardText}>+{currentDrill.expReward} EXP</Text>
+                </View>
+              </View>
+
+              <Text
+                style={[
+                  styles.challengeText,
+                  isChallengeCompleted && styles.challengeTextCompleted,
+                ]}
+              >
+                {currentDrill.text}
+              </Text>
+            </View>
           </Pressable>
         </View>
 
         {/* Active Curriculums */}
         <View style={styles.curriculumsSection}>
-          <Text style={styles.sectionTitle}>ACTIVE CURRICULUMS</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>ACTIVE CURRICULUMS</Text>
+            <Pressable
+              onPress={handleViewAllCurriculums}
+              style={styles.viewAllButton}
+              accessibilityRole="button"
+            >
+              <Text style={styles.viewAllText}>View All →</Text>
+            </Pressable>
+          </View>
 
           <View style={styles.curriculumsList}>
-            {curriculums.map((curr) => {
+            {activeCurriculums.map((curr) => {
               const isMastered = masteredRuleIds.includes(curr.defaultRuleId);
               const baseCount =
                 curr.id === 'curr-1'
@@ -210,15 +289,16 @@ export default function DailyShadowScreen() {
                   ? 7
                   : curr.id === 'curr-5'
                   ? 9
-                  : 0;
+                  : 5;
               const count = Math.min(curr.totalRules, baseCount + (isMastered ? 1 : 0));
-              const percent = Math.round((count / curr.totalRules) * 100);
+              const percent = Math.min(100, Math.round((count / curr.totalRules) * 100));
 
               return (
                 <Pressable
                   key={curr.id}
-                  onPress={() => router.push(curr.isPro ? '/paywall' : `/(tabs)/codex/${curr.defaultRuleId}`)}
+                  onPress={handleViewAllCurriculums}
                   style={styles.curriculumCard}
+                  accessibilityRole="button"
                 >
                   <View style={styles.currTopRow}>
                     <View style={{ flex: 1, paddingRight: 8 }}>
@@ -348,6 +428,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.primary,
     letterSpacing: 1.2,
+    flex: 1,
+    paddingRight: 8,
   },
   axiomBadge: {
     backgroundColor: 'rgba(242, 202, 80, 0.15)',
@@ -361,6 +443,14 @@ const styles = StyleSheet.create({
     fontFamily: fonts.label,
     fontSize: 9,
     color: colors.primary,
+  },
+  masteredBadge: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  masteredBadgeText: {
+    color: colors.onPrimary,
+    fontFamily: fonts.labelSemiBold,
   },
   heroTitle: {
     fontFamily: fonts.display,
@@ -428,11 +518,33 @@ const styles = StyleSheet.create({
   challengeSection: {
     gap: 10,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   sectionTitle: {
     fontFamily: fonts.label,
     fontSize: 10,
     color: colors.outline,
     letterSpacing: 1.2,
+  },
+  cycleDrillButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(242, 202, 80, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(242, 202, 80, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  cycleDrillText: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    color: colors.primary,
+    letterSpacing: 0.5,
   },
   challengeCard: {
     flexDirection: 'row',
@@ -456,14 +568,41 @@ const styles = StyleSheet.create({
     borderColor: colors.outline,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 1,
+    marginTop: 2,
   },
   checkboxChecked: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  challengeText: {
+  challengeContent: {
     flex: 1,
+    gap: 6,
+  },
+  drillMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  drillProtocolTag: {
+    fontFamily: fonts.label,
+    fontSize: 9,
+    color: colors.primary,
+    letterSpacing: 1,
+    flex: 1,
+  },
+  drillRewardBadge: {
+    backgroundColor: 'rgba(242, 202, 80, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  drillRewardText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 9,
+    color: colors.primary,
+  },
+  challengeText: {
     fontFamily: fonts.body,
     fontSize: 13,
     color: colors.onSurface,
@@ -475,6 +614,16 @@ const styles = StyleSheet.create({
   },
   curriculumsSection: {
     gap: 10,
+  },
+  viewAllButton: {
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  viewAllText: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    color: colors.primary,
+    letterSpacing: 0.8,
   },
   curriculumsList: {
     gap: 10,

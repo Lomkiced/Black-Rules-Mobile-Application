@@ -83,6 +83,18 @@ export interface Curriculum {
 }
 
 /**
+ * Daily Behavioral Drill Specification
+ */
+export interface DailyDrill {
+  id: string;
+  text: string;
+  protocolTag: string;
+  categoryTag: string;
+  expReward: number;
+  traitKey: TraitKey;
+}
+
+/**
  * Legacy Scenario Node Support (Backwards Compatibility)
  */
 export interface ScenarioChoice {

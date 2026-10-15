@@ -22,6 +22,7 @@ import {
 } from '@expo-google-fonts/jetbrains-mono';
 import { colors } from '../theme/tokens';
 import { initRevenueCat } from '../lib/revenuecat';
+import { TacticalToast } from '../components/ui/TacticalToast';
 import { useUserStore } from '../store/useUserStore';
 
 const queryClient = new QueryClient();
@@ -29,10 +30,14 @@ const queryClient = new QueryClient();
 function RootNavigation() {
   const router = useRouter();
   const segments = useSegments();
-  const { hasSeenIntro, isAuthenticated, hasCompletedDiagnostic } = useUserStore();
-  const [isHydrated, setIsHydrated] = useState(false);
+  const { hasSeenIntro, isAuthenticated, hasCompletedDiagnostic, hasHydrated } = useUserStore();
+  const [isHydrated, setIsHydrated] = useState(hasHydrated);
 
   useEffect(() => {
+    if (hasHydrated) {
+      setIsHydrated(true);
+      return;
+    }
     const unsub = useUserStore.persist.onFinishHydration(() => {
       setIsHydrated(true);
     });
@@ -40,7 +45,7 @@ function RootNavigation() {
       setIsHydrated(true);
     }
     return () => unsub();
-  }, []);
+  }, [hasHydrated]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -74,34 +79,46 @@ function RootNavigation() {
   }, [isHydrated, hasSeenIntro, isAuthenticated, hasCompletedDiagnostic, segments]);
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: colors.surface },
-        animation: 'fade',
-      }}
-    >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="paywall"
-        options={{
-          presentation: 'modal',
+    <>
+      <TacticalToast />
+      <Stack
+        screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.surface },
+          animation: 'fade',
         }}
-      />
-      <Stack.Screen
-        name="advisor"
-        options={{
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.surface },
-        }}
-      />
-    </Stack>
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="paywall"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.surface },
+          }}
+        />
+        <Stack.Screen
+          name="advisor"
+          options={{
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.surface },
+          }}
+        />
+        <Stack.Screen
+          name="profile"
+          options={{
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.surface },
+          }}
+        />
+      </Stack>
+    </>
   );
 }
 

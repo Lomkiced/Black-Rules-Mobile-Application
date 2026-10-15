@@ -32,28 +32,7 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
     } catch {
       // safe fallback
     }
-    Alert.alert(
-      'SOVEREIGN CLEARANCE',
-      'Select administrative security protocol:',
-      [
-        {
-          text: 'Open Sovereign Paywall',
-          onPress: () => router.push('/paywall'),
-        },
-        {
-          text: 'Lock Vault / Replay Intro & Login',
-          style: 'destructive',
-          onPress: () => {
-            logoutAndResetFlow();
-            router.replace('/(onboarding)/welcome' as any);
-          },
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
+    router.push('/profile' as any);
   };
 
   const handleSearchPress = () => {

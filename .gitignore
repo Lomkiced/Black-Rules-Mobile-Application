@@ -38,3 +38,6 @@ temp/
 
 expo-env.d.ts
 # @end expo-cli
+
+# Antigravity Skills
+.antigravity/skills/

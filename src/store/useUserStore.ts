@@ -36,7 +36,16 @@ interface UserStoreState {
   operativeName: string;
   operativeEmail: string;
 
+  // Hydration & Toast Engine
+  hasHydrated: boolean;
+  currentDrillIndex: number;
+  lastToastMessage: string | null;
+
   // Actions
+  setHasHydrated: (hydrated: boolean) => void;
+  updateOperativeName: (name: string) => void;
+  nextDailyDrill: () => void;
+  clearToast: () => void;
   completeIntro: () => void;
   loginOperative: (email?: string, name?: string) => void;
   completeDiagnostic: (calibratedStats?: Partial<Record<TraitKey, number>>) => void;
@@ -91,6 +100,10 @@ export const useUserStore = create<UserStoreState>()(
       operativeName: 'Elena Vance',
       operativeEmail: 'strategist@blackrules.io',
 
+      hasHydrated: false,
+      currentDrillIndex: 0,
+      lastToastMessage: null,
+
       rules: BLACK_RULES,
       scenarios: ARENA_SCENARIOS,
       curriculums: CURRICULUMS,
@@ -100,6 +113,10 @@ export const useUserStore = create<UserStoreState>()(
       completedScenarioIds: [],
 
       archiveSearch: '',
+
+      setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
+
+      updateOperativeName: (name) => set({ operativeName: name }),
 
       completeIntro: () => set({ hasSeenIntro: true }),
 
@@ -136,7 +153,36 @@ export const useUserStore = create<UserStoreState>()(
       setPro: (isPro) => set({ isPro }),
 
       toggleChallenge: () =>
-        set((state) => ({ isChallengeCompleted: !state.isChallengeCompleted })),
+        set((state) => {
+          const willComplete = !state.isChallengeCompleted;
+          if (willComplete) {
+            const newXp = state.xp + 20;
+            const newStreak = state.streak + 1;
+            const updatedStats = {
+              ...state.stats,
+              stoicism: Math.min(100, state.stats.stoicism + 1),
+            };
+            return {
+              isChallengeCompleted: true,
+              streak: newStreak,
+              streakCount: newStreak,
+              xp: newXp,
+              levelTier: computeLevelTier(newXp),
+              stats: updatedStats,
+              lastToastMessage: 'PROTOCOL LOCKED // +20 EXP • STOICISM +1',
+            };
+          } else {
+            return { isChallengeCompleted: false };
+          }
+        }),
+
+      nextDailyDrill: () =>
+        set((state) => ({
+          currentDrillIndex: (state.currentDrillIndex + 1) % 5,
+          isChallengeCompleted: false,
+        })),
+
+      clearToast: () => set({ lastToastMessage: null }),
 
       incrementStreak: () =>
         set((state) => ({
@@ -282,6 +328,9 @@ export const useUserStore = create<UserStoreState>()(
     {
       name: 'black-rules-user-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
       partialize: (state) => ({
         isPro: state.isPro,
         hasSeenIntro: state.hasSeenIntro,
@@ -289,6 +338,7 @@ export const useUserStore = create<UserStoreState>()(
         hasCompletedDiagnostic: state.hasCompletedDiagnostic,
         operativeName: state.operativeName,
         operativeEmail: state.operativeEmail,
+        currentDrillIndex: state.currentDrillIndex,
         streak: state.streak,
         streakCount: state.streakCount,
         xp: state.xp,
