@@ -46,6 +46,7 @@ interface UserStoreState {
   updateOperativeName: (name: string) => void;
   nextDailyDrill: () => void;
   clearToast: () => void;
+  setToast: (msg: string) => void;
   completeIntro: () => void;
   loginOperative: (email?: string, name?: string) => void;
   completeDiagnostic: (calibratedStats?: Partial<Record<TraitKey, number>>) => void;
@@ -183,6 +184,7 @@ export const useUserStore = create<UserStoreState>()(
         })),
 
       clearToast: () => set({ lastToastMessage: null }),
+      setToast: (msg) => set({ lastToastMessage: msg }),
 
       incrementStreak: () =>
         set((state) => ({

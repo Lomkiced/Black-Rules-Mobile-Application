@@ -22,6 +22,7 @@ import {
 } from '@expo-google-fonts/jetbrains-mono';
 import { colors } from '../theme/tokens';
 import { initRevenueCat } from '../lib/revenuecat';
+import { initSentry } from '../lib/sentry';
 import { TacticalToast } from '../components/ui/TacticalToast';
 import { BootSplash } from '../components/ui/LoadingOverlay';
 import { useUserStore } from '../store/useUserStore';
@@ -118,6 +119,15 @@ function RootNavigation() {
             contentStyle: { backgroundColor: colors.surface },
           }}
         />
+        <Stack.Screen
+          name="legal"
+          options={{
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.surface },
+          }}
+        />
       </Stack>
     </>
   );
@@ -138,6 +148,7 @@ export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
+    initSentry();
     initRevenueCat();
   }, []);
 

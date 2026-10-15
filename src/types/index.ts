@@ -137,14 +137,18 @@ export interface Scenario {
 export interface UserState {
   userId: string;
   isPro: boolean;
+  streak: number;
   streakCount: number;
-  lastActiveDate: string;
+  lastActiveDate?: string;
   xp: number;
-  level: number;
+  level?: number;
+  levelTier?: string;
+  operativeName?: string;
+  operativeEmail?: string;
   stats: CharacterStats;
-  completedRuleIds: string[];
+  completedRuleIds?: string[];
   bookmarkedRuleIds: string[];
   masteredRuleIds: string[];
-  completedScenarioIds: string[];
-  freeAdvisorUsesLeft: number;
+  completedScenarioIds?: string[];
+  freeAdvisorUsesLeft?: number;
 }

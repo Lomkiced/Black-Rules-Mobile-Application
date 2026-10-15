@@ -1,11 +1,12 @@
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { TopAppBar } from '../../components/ui/TopAppBar';
 import { AppIcon } from '../../components/ui/AppIcon';
 import { RadarChart } from '../../components/features/RadarChart';
 import { BMonogram } from '../../components/ui/BMonogram';
-import { colors, fonts } from '../../theme/tokens';
+import { fonts } from '../../theme/tokens';
 import { useUserStore } from '../../store/useUserStore';
 import { TraitKey } from '../../types';
 
@@ -43,6 +44,16 @@ const SKILLS: SkillConfig[] = [
   },
 ];
 
+const WEEKDAYS = [
+  { day: 'Mon', completed: true },
+  { day: 'Tue', completed: true },
+  { day: 'Wed', completed: true },
+  { day: 'Thu', completed: true },
+  { day: 'Fri', completed: true },
+  { day: 'Sat', completed: false },
+  { day: 'Sun', completed: false },
+];
+
 export default function StatsScreen() {
   const router = useRouter();
   const {
@@ -53,6 +64,7 @@ export default function StatsScreen() {
     streak,
     masteredRuleIds,
     isPro,
+    isChallengeCompleted,
   } = useUserStore();
 
   const handleUpgradePress = () => {
@@ -62,6 +74,17 @@ export default function StatsScreen() {
       // safe fallback
     }
     router.push('/paywall');
+  };
+
+  const handleShareDossier = async () => {
+    try {
+      Haptics.selectionAsync();
+      await Share.share({
+        message: `BLACK RULES // OPERATIVE CHARACTER DOSSIER\nOperative: ${operativeName || 'Strategist'}\nClearance: ${isPro ? 'Tier Sovereign // PRO' : levelTier}\nStreak: ${streak} Days Active • ${xp.toLocaleString()} XP\n\n5-TRAIT CHARACTER VECTOR:\n• Self-Control: ${stats.stoicism}%\n• Confidence: ${stats.assertiveness}%\n• Persuasion: ${stats.persuasion}%\n• Awareness: ${stats.awareness}%\n• Negotiation: ${stats.negotiation}%\n\nMaster the Unspoken Laws of Human Nature: blackrules.io`,
+      });
+    } catch {
+      // safe fallback
+    }
   };
 
   const initial = (operativeName || 'E').trim().charAt(0).toUpperCase();
@@ -113,6 +136,56 @@ export default function StatsScreen() {
               <Text style={styles.metricValue}>{streak}D</Text>
               <Text style={styles.metricLabel}>Daily Streak</Text>
             </View>
+          </View>
+
+          {/* Share Character Dossier Button */}
+          <Pressable
+            onPress={handleShareDossier}
+            style={styles.shareDossierBtn}
+            accessibilityRole="button"
+          >
+            <AppIcon name="share" size={13} color="#FAFAFA" />
+            <Text style={styles.shareDossierText}>Share Character Dossier</Text>
+          </Pressable>
+        </View>
+
+        {/* 7-Day Consistency Pixel Matrix Card */}
+        <View style={styles.consistencyCard}>
+          <View style={styles.consistencyHeader}>
+            <View style={styles.consistencyTitleRow}>
+              <Text style={styles.consistencyLabel}>7-DAY CONSISTENCY MATRIX</Text>
+              <View style={styles.bonusTag}>
+                <Text style={styles.bonusTagText}>+20 XP DAILY BONUS</Text>
+              </View>
+            </View>
+            <Text style={styles.consistencyStreakText}>
+              {streak} Days Streak • {isChallengeCompleted ? 'Completed Today' : 'Pending Today'}
+            </Text>
+          </View>
+
+          {/* 7-Day Pixel Blocks */}
+          <View style={styles.matrixRow}>
+            {WEEKDAYS.map((w, idx) => {
+              const isToday = idx === 4; // Friday
+              const isFilled = w.completed || (isToday && isChallengeCompleted);
+
+              return (
+                <View key={w.day} style={styles.dayCol}>
+                  <Text style={[styles.dayText, isToday && styles.dayTextToday]}>
+                    {w.day}
+                  </Text>
+                  <View
+                    style={[
+                      styles.pixelBlock,
+                      isFilled && styles.pixelBlockFilled,
+                      isToday && !isFilled && styles.pixelBlockTodayPending,
+                    ]}
+                  >
+                    {isFilled && <View style={styles.pixelCenterDot} />}
+                  </View>
+                </View>
+              );
+            })}
           </View>
         </View>
 
@@ -272,6 +345,106 @@ const styles = StyleSheet.create({
     width: 1,
     height: 24,
     backgroundColor: '#27272A',
+  },
+  shareDossierBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 10,
+    paddingVertical: 10,
+  },
+  shareDossierText: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    color: '#FAFAFA',
+    letterSpacing: 0.5,
+  },
+  consistencyCard: {
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 14,
+    padding: 16,
+    gap: 14,
+  },
+  consistencyHeader: {
+    gap: 4,
+  },
+  consistencyTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  consistencyLabel: {
+    fontFamily: fonts.label,
+    fontSize: 9,
+    color: '#71717A',
+    letterSpacing: 1.2,
+  },
+  bonusTag: {
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#3F3F46',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  bonusTagText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 8,
+    color: '#FFFFFF',
+    letterSpacing: 0.6,
+  },
+  consistencyStreakText: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: '#D4D4D8',
+  },
+  matrixRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dayCol: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  dayText: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    color: '#71717A',
+  },
+  dayTextToday: {
+    color: '#FFFFFF',
+    fontFamily: fonts.labelSemiBold,
+  },
+  pixelBlock: {
+    width: 28,
+    height: 28,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#27272A',
+    backgroundColor: '#050507',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pixelBlockFilled: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
+  },
+  pixelBlockTodayPending: {
+    borderColor: '#FFFFFF',
+    borderStyle: 'dashed',
+  },
+  pixelCenterDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 1,
+    backgroundColor: '#09090B',
   },
   chartCard: {
     backgroundColor: '#121215',

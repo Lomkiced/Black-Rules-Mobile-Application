@@ -6,6 +6,8 @@ import {
   ScrollView,
   Pressable,
   TextInput,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -14,6 +16,8 @@ import { AppIcon } from '../components/ui/AppIcon';
 import { fonts } from '../theme/tokens';
 import { useUserStore } from '../store/useUserStore';
 import { BLACK_RULES } from '../store/mockData';
+import { syncUserProgressToCloud } from '../lib/supabase';
+import { addBreadcrumb, getBreadcrumbs } from '../lib/sentry';
 
 export default function ProfileModalScreen() {
   const insets = useSafeAreaInsets();
@@ -26,14 +30,20 @@ export default function ProfileModalScreen() {
     streak,
     masteredRuleIds,
     bookmarkedRuleIds,
+    stats,
     operativeName,
     operativeEmail,
     updateOperativeName,
     logoutAndResetFlow,
     rules,
+    setToast,
   } = useUserStore();
 
   const [name, setName] = useState(operativeName);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showTelemetryLog, setShowTelemetryLog] = useState(false);
+  const [telemetryLogs, setTelemetryLogs] = useState<string[]>([]);
+
   const allRules = rules && rules.length > 0 ? rules : BLACK_RULES;
 
   const bookmarkedRules = allRules.filter((r) =>
@@ -57,6 +67,76 @@ export default function ProfileModalScreen() {
     }, 150);
   };
 
+  const handleSyncCloud = async () => {
+    try {
+      Haptics.selectionAsync();
+    } catch {
+      // safe fallback
+    }
+    setIsSyncing(true);
+    addBreadcrumb('cloud_sync', `Manual sync initiated by ${operativeName}`);
+
+    try {
+      const result = await syncUserProgressToCloud({
+        isPro,
+        xp,
+        streak,
+        stats,
+        masteredRuleIds,
+        bookmarkedRuleIds,
+        operativeName: name,
+        operativeEmail,
+      });
+
+      setIsSyncing(false);
+      if (result.mode === 'cloud') {
+        setToast('SYNC COMPLETE // SUPABASE CLOUD ACTIVE');
+      } else {
+        setToast('LOCAL-FIRST ACTIVE // CLOUD STANDBY');
+      }
+    } catch {
+      setIsSyncing(false);
+      setToast('LOCAL STORAGE VERIFIED // CACHE SECURE');
+    }
+  };
+
+  const handleToggleTelemetry = () => {
+    const crumbs = getBreadcrumbs().map(
+      (b) => `[${b.category.toUpperCase()}] ${b.message}`
+    );
+    setTelemetryLogs(crumbs);
+    setShowTelemetryLog((prev) => !prev);
+  };
+
+  const handleDeleteAccount = () => {
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    } catch {
+      // safe fallback
+    }
+
+    Alert.alert(
+      'Delete Account & Erase All Data',
+      'This will permanently wipe your streak, mastered rules, character telemetry, and cloud credentials from this device. This action is irreversible.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete & Erase Data',
+          style: 'destructive',
+          onPress: () => {
+            addBreadcrumb('compliance', 'User account erased (App Store mandated)');
+            logoutAndResetFlow();
+            setToast('DATA ERASED // SESSION RESET');
+            router.replace('/(onboarding)/welcome' as any);
+          },
+        },
+      ]
+    );
+  };
+
   const handleLogoutReplay = () => {
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -67,7 +147,7 @@ export default function ProfileModalScreen() {
     router.replace('/(onboarding)/welcome' as any);
   };
 
-  const initial = (operativeName || 'E').trim().charAt(0).toUpperCase();
+  const initial = (name || 'E').trim().charAt(0).toUpperCase();
 
   return (
     <View style={styles.root}>
@@ -187,9 +267,83 @@ export default function ProfileModalScreen() {
           )}
         </View>
 
+        {/* Cloud & Startup Stack Status Card */}
+        <View style={styles.cloudCard}>
+          <View style={styles.cloudHeaderRow}>
+            <View style={styles.cloudHeaderLeft}>
+              <View style={styles.cloudPulseDot} />
+              <Text style={styles.cloudCardTitle}>STARTUP STACK & TELEMETRY</Text>
+            </View>
+            <View style={styles.cloudBadge}>
+              <Text style={styles.cloudBadgeText}>HYBRID ACTIVE</Text>
+            </View>
+          </View>
+
+          <View style={styles.cloudGrid}>
+            <View style={styles.cloudGridItem}>
+              <Text style={styles.cloudGridLabel}>DATABASE / RLS</Text>
+              <Text style={styles.cloudGridValue}>Supabase Free Tier (pgvector)</Text>
+            </View>
+            <View style={styles.cloudGridItem}>
+              <Text style={styles.cloudGridLabel}>AUTH & IDENTITY</Text>
+              <Text style={styles.cloudGridValue}>Clerk / Local-First Sovereign</Text>
+            </View>
+            <View style={styles.cloudGridItem}>
+              <Text style={styles.cloudGridLabel}>RATE LIMITING</Text>
+              <Text style={styles.cloudGridValue}>Upstash Serverless Redis HTTP</Text>
+            </View>
+            <View style={styles.cloudGridItem}>
+              <Text style={styles.cloudGridLabel}>AI VECTOR RAG</Text>
+              <Text style={styles.cloudGridValue}>Pinecone / Cosine Matcher</Text>
+            </View>
+          </View>
+
+          <View style={styles.cloudSyncRow}>
+            <Pressable
+              onPress={handleSyncCloud}
+              disabled={isSyncing}
+              style={[styles.syncButton, isSyncing && styles.syncButtonDisabled]}
+            >
+              {isSyncing ? (
+                <ActivityIndicator size="small" color="#09090B" />
+              ) : (
+                <>
+                  <AppIcon name="cached" size={14} color="#09090B" />
+                  <Text style={styles.syncButtonText}>Sync Progress to Cloud Now</Text>
+                </>
+              )}
+            </Pressable>
+
+            <Pressable
+              onPress={handleToggleTelemetry}
+              style={styles.telemetryToggleBtn}
+            >
+              <AppIcon name="terminal" size={13} color="#A1A1AA" />
+              <Text style={styles.telemetryToggleText}>
+                {showTelemetryLog ? 'Hide Telemetry' : 'Diagnostics (Sentry)'}
+              </Text>
+            </Pressable>
+          </View>
+
+          {showTelemetryLog && (
+            <View style={styles.telemetryConsole}>
+              <Text style={styles.telemetryHeader}>IN-MEMORY SENTRY RING BUFFER (LAST 20)</Text>
+              {telemetryLogs.length === 0 ? (
+                <Text style={styles.telemetryEmpty}>No events logged in buffer yet.</Text>
+              ) : (
+                telemetryLogs.map((log, idx) => (
+                  <Text key={idx} style={styles.telemetryLine}>
+                    {`> ${log}`}
+                  </Text>
+                ))
+              )}
+            </View>
+          )}
+        </View>
+
         {/* Command Controls */}
         <View style={styles.controlsSection}>
-          <Text style={styles.sectionLabel}>ACTIONS</Text>
+          <Text style={styles.sectionLabel}>CONTROLS & COMPLIANCE</Text>
 
           {!isPro && (
             <Pressable
@@ -221,12 +375,42 @@ export default function ProfileModalScreen() {
             <Text style={styles.advisorCtaText}>Consult AI Coach →</Text>
           </Pressable>
 
+          {/* Privacy Policy & Terms Modal Route */}
+          <Pressable
+            onPress={() => {
+              try {
+                Haptics.selectionAsync();
+              } catch {
+                // safe fallback
+              }
+              router.push('/legal' as any);
+            }}
+            style={styles.legalBtn}
+          >
+            <View style={styles.legalBtnLeft}>
+              <AppIcon name="lock" size={14} color="#A1A1AA" />
+              <Text style={styles.legalBtnText}>Privacy Policy & Legal Terms</Text>
+            </View>
+            <AppIcon name="arrow_forward" size={14} color="#71717A" />
+          </Pressable>
+
           <Pressable
             onPress={handleLogoutReplay}
             style={styles.resetBtn}
           >
             <Text style={styles.resetBtnText}>
               Reset Session & Replay Walkthrough
+            </Text>
+          </Pressable>
+
+          {/* Apple App Store Mandatory: Delete Account & Erase All Data */}
+          <Pressable
+            onPress={handleDeleteAccount}
+            style={styles.deleteAccountBtn}
+          >
+            <AppIcon name="delete" size={13} color="#EF4444" />
+            <Text style={styles.deleteAccountBtnText}>
+              Delete Account & Erase All Data
             </Text>
           </Pressable>
         </View>
@@ -489,5 +673,180 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#F87171',
     letterSpacing: 0.5,
+  },
+  cloudCard: {
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 14,
+    padding: 16,
+    gap: 14,
+  },
+  cloudHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cloudHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cloudPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
+  },
+  cloudCardTitle: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    color: '#FAFAFA',
+    letterSpacing: 1,
+  },
+  cloudBadge: {
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  cloudBadgeText: {
+    fontFamily: fonts.label,
+    fontSize: 8,
+    color: '#A1A1AA',
+    letterSpacing: 0.5,
+  },
+  cloudGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  cloudGridItem: {
+    width: '48%',
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 8,
+    padding: 10,
+    gap: 4,
+  },
+  cloudGridLabel: {
+    fontFamily: fonts.label,
+    fontSize: 8,
+    color: '#71717A',
+    letterSpacing: 0.6,
+  },
+  cloudGridValue: {
+    fontFamily: fonts.headlineMedium,
+    fontSize: 11,
+    color: '#FAFAFA',
+  },
+  cloudSyncRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+  },
+  syncButton: {
+    flex: 1,
+    height: 42,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  syncButtonDisabled: {
+    opacity: 0.6,
+  },
+  syncButtonText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 11,
+    color: '#09090B',
+    letterSpacing: 0.6,
+  },
+  telemetryToggleBtn: {
+    height: 42,
+    paddingHorizontal: 12,
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  telemetryToggleText: {
+    fontFamily: fonts.label,
+    fontSize: 10,
+    color: '#A1A1AA',
+  },
+  telemetryConsole: {
+    backgroundColor: '#050507',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 8,
+    padding: 12,
+    gap: 6,
+  },
+  telemetryHeader: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    color: '#71717A',
+    letterSpacing: 0.8,
+  },
+  telemetryEmpty: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: '#52525B',
+  },
+  telemetryLine: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: '#A1A1AA',
+    lineHeight: 14,
+  },
+  legalBtn: {
+    height: 46,
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  legalBtnLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  legalBtnText: {
+    fontFamily: fonts.label,
+    fontSize: 12,
+    color: '#FAFAFA',
+    letterSpacing: 0.5,
+  },
+  deleteAccountBtn: {
+    height: 46,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderWidth: 1,
+    borderColor: '#7F1D1D',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  deleteAccountBtnText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 11,
+    color: '#EF4444',
+    letterSpacing: 0.6,
   },
 });

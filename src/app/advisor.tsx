@@ -15,42 +15,34 @@ import { AppIcon } from '../components/ui/AppIcon';
 import { LoadingDots } from '../components/ui/LoadingOverlay';
 import { fonts } from '../theme/tokens';
 import { useUserStore } from '../store/useUserStore';
-import { BLACK_RULES } from '../store/mockData';
+import { analyzeDilemmaWithVectorRag, VectorRagResult } from '../lib/vectorAi';
+import { addBreadcrumb } from '../lib/sentry';
 
-interface ProtocolResult {
-  frameControl: string;
-  script: string;
-  linkedRuleId: string;
-  linkedRuleNumber: string;
-  linkedRuleTitle: string;
-}
-
-const PRESET_DILEMMAS = [
-  'Coworker taking credit for my project',
-  'Client demanding a 30% discount',
-  'Boss texting urgent tasks on weekends',
+const QUICK_CHIPS = [
+  'Coworker stole my credit',
+  'Low salary offer',
+  'Someone disrespected me',
+  'Friend keeps asking for favors',
 ];
 
 export default function AdvisorModalScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const { isPro, freeAdvisorUsesLeft, useAdvisorCredit, rules } = useUserStore();
+  const { isPro, freeAdvisorUsesLeft, useAdvisorCredit } = useUserStore();
 
   const [dilemmaInput, setDilemmaInput] = useState('');
   const [isSynthesizing, setIsSynthesizing] = useState(false);
-  const [protocolResult, setProtocolResult] = useState<ProtocolResult | null>(null);
+  const [protocolResult, setProtocolResult] = useState<VectorRagResult | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const allRules = rules && rules.length > 0 ? rules : BLACK_RULES;
-
-  const handleSelectPreset = (preset: string) => {
+  const handleSelectChip = (chip: string) => {
     try {
       Haptics.selectionAsync();
     } catch {
       // safe fallback
     }
-    setDilemmaInput(preset);
+    setDilemmaInput(chip);
     setProtocolResult(null);
   };
 
@@ -65,7 +57,7 @@ export default function AdvisorModalScreen() {
     }
   };
 
-  const handleGenerateProtocol = () => {
+  const handleAnalyzeSituation = async () => {
     if (!dilemmaInput.trim() || isSynthesizing) return;
 
     if (!isPro && freeAdvisorUsesLeft <= 0) {
@@ -81,64 +73,35 @@ export default function AdvisorModalScreen() {
 
     setIsSynthesizing(true);
     setProtocolResult(null);
+    addBreadcrumb('advisor', `User triggered AI RAG analysis: ${dilemmaInput}`);
 
-    setTimeout(() => {
+    try {
+      const result = await analyzeDilemmaWithVectorRag(dilemmaInput);
       useAdvisorCredit();
-
-      const text = dilemmaInput.toLowerCase();
-      let result: ProtocolResult;
-
-      if (text.includes('credit') || text.includes('coworker')) {
-        result = {
-          frameControl:
-            'Neutralize emotional anger in public. Let the counterpart fully commit to their claim in front of stakeholders, then calmly request granular operational metrics they cannot answer.',
-          script:
-            '"I am glad Marcus is aligned with the model I developed. Marcus, walk the committee through the Q3 liquidity stress tests I modeled in Appendix C—how do you propose we absorb that variance?"',
-          linkedRuleId: '07',
-          linkedRuleNumber: '07',
-          linkedRuleTitle: 'Protect Your Reputation',
-        };
-      } else if (text.includes('discount') || text.includes('client') || text.includes('30%') || text.includes('salary')) {
-        result = {
-          frameControl:
-            'Deploy 4 seconds of unbroken silence. Never meet a percentage demand with an emotional counter-offer. Demand asymmetric reciprocity: reduce scope or increase contractual commitment.',
-          script:
-            '"We can certainly explore matching that budget figure. Which core deliverables from Phase 2 shall we eliminate from the contract SLA to reflect that reduction?"',
-          linkedRuleId: '12',
-          linkedRuleNumber: '12',
-          linkedRuleTitle: 'Anchor High, Concede Slowly',
-        };
-      } else if (text.includes('boss') || text.includes('weekend') || text.includes('urgent') || text.includes('favor')) {
-        result = {
-          frameControl:
-            'Never reply impulsively or with irritation. Say no without inventing fake excuses. Polite, firm boundaries train colleagues to respect your perimeter automatically.',
-          script:
-            '"I am not able to take that on this weekend. I will look at it first thing Monday morning when I am back online."',
-          linkedRuleId: '03',
-          linkedRuleNumber: '03',
-          linkedRuleTitle: 'Say "No" Without Apologies',
-        };
-      } else {
-        result = {
-          frameControl:
-            'Impose an involuntary 3-second vacuum before responding. Urgency is fabricated theatre. Re-frame the interaction so the counterpart bears the cognitive burden.',
-          script:
-            '"Help me understand the underlying constraint here: are we optimizing for speed of execution or downside risk protection on this initiative?"',
-          linkedRuleId: '01',
-          linkedRuleNumber: '01',
-          linkedRuleTitle: 'Pause Before You Speak',
-        };
-      }
-
       setProtocolResult(result);
-      setIsSynthesizing(false);
 
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {
         // safe fallback
       }
-    }, 600);
+    } catch {
+      // safe fallback
+    } finally {
+      setIsSynthesizing(false);
+    }
+  };
+
+  const handleRulePress = (ruleId: string) => {
+    try {
+      Haptics.selectionAsync();
+    } catch {
+      // safe fallback
+    }
+    router.back();
+    setTimeout(() => {
+      router.push(`/(tabs)/codex/${ruleId}`);
+    }, 150);
   };
 
   return (
@@ -153,8 +116,8 @@ export default function AdvisorModalScreen() {
         ]}
       >
         <View style={styles.topBarLeft}>
-          <Text style={styles.topBarCode}>AI COACH // TACTICAL ADVICE</Text>
-          <Text style={styles.topBarTitle}>Situation Coach</Text>
+          <Text style={styles.topBarCode}>AI COACH // VECTOR RAG ENGINE</Text>
+          <Text style={styles.topBarTitle}>Situation Advisor</Text>
         </View>
 
         <Pressable
@@ -172,121 +135,141 @@ export default function AdvisorModalScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Credits Pill */}
-        <View style={styles.creditsRow}>
-          <Text style={styles.creditsText}>
+        {/* Usage Pill */}
+        <View style={styles.usageRow}>
+          <Text style={styles.usageText}>
             {isPro
-              ? 'SOVEREIGN PRO // UNLIMITED QUERIES'
+              ? 'SOVEREIGN PRO // UNLIMITED SESSIONS'
               : `${freeAdvisorUsesLeft} FREE QUERY REMAINING`}
           </Text>
         </View>
 
-        {/* Input Box */}
+        {/* Input Card */}
         <View style={styles.inputCard}>
-          <Text style={styles.inputCardLabel}>DESCRIBE YOUR DILEMMA</Text>
+          <Text style={styles.inputCardLabel}>DESCRIBE YOUR SITUATION</Text>
           <TextInput
             value={dilemmaInput}
             onChangeText={(t) => {
               setDilemmaInput(t);
               setProtocolResult(null);
             }}
-            placeholder="e.g. My boss asks for weekend work at 5 PM on Friday..."
+            placeholder="Type any workplace or personal situation..."
             placeholderTextColor="#71717A"
             multiline
-            numberOfLines={4}
-            style={styles.dilemmaTextInput}
+            numberOfLines={3}
+            style={styles.textInput}
           />
         </View>
 
-        {/* Preset Chips */}
-        <View style={styles.presetsSection}>
-          <Text style={styles.presetsLabel}>OR SELECT COMMON SCENARIO</Text>
-          <View style={styles.presetChipsRow}>
-            {PRESET_DILEMMAS.map((preset) => (
-              <Pressable
-                key={preset}
-                onPress={() => handleSelectPreset(preset)}
-                style={[
-                  styles.presetChip,
-                  dilemmaInput === preset && styles.presetChipActive,
-                ]}
-              >
-                <Text
+        {/* Quick-Select Chips */}
+        <View style={styles.chipsSection}>
+          <Text style={styles.chipsLabel}>QUICK SITUATIONS</Text>
+          <View style={styles.chipsRow}>
+            {QUICK_CHIPS.map((chip) => {
+              const isActive = dilemmaInput === chip;
+              return (
+                <Pressable
+                  key={chip}
+                  onPress={() => handleSelectChip(chip)}
                   style={[
-                    styles.presetChipText,
-                    dilemmaInput === preset && styles.presetChipTextActive,
+                    styles.chip,
+                    isActive && styles.chipActive,
                   ]}
                 >
-                  {preset}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    style={[
+                      styles.chipText,
+                      isActive && styles.chipTextActive,
+                    ]}
+                  >
+                    {chip}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
-        {/* Generate Button */}
+        {/* Analyze Button */}
         <Pressable
-          onPress={handleGenerateProtocol}
+          onPress={handleAnalyzeSituation}
           disabled={!dilemmaInput.trim() || isSynthesizing}
           style={[
-            styles.generateBtn,
-            (!dilemmaInput.trim() || isSynthesizing) && styles.generateBtnDisabled,
+            styles.analyzeBtn,
+            (!dilemmaInput.trim() || isSynthesizing) && styles.analyzeBtnDisabled,
           ]}
         >
           {isSynthesizing ? (
             <LoadingDots size={6} color="#09090B" />
           ) : (
-            <Text style={styles.generateBtnText}>Get Advice & Script →</Text>
+            <Text style={styles.analyzeBtnText}>Analyze Situation →</Text>
           )}
         </Pressable>
 
-        {/* Protocol Result Card */}
+        {/* Custom AI Breakdown */}
         {protocolResult && (
-          <View style={styles.resultCard}>
-            <View style={styles.resultHeader}>
-              <Text style={styles.resultBadgeText}>RECOMMENDED RESPONSE SCRIPT</Text>
+          <View style={styles.breakdownContainer}>
+            {/* 1. What Is Really Happening */}
+            <View style={styles.card}>
+              <Text style={styles.cardHeader}>WHAT IS REALLY HAPPENING</Text>
+              <Text style={styles.bodyText}>{protocolResult.summary}</Text>
             </View>
 
-            {/* Strategic Advice */}
-            <View style={styles.partBlock}>
-              <Text style={styles.partTitle}>PSYCHOLOGICAL APPROACH</Text>
-              <Text style={styles.partBody}>{protocolResult.frameControl}</Text>
-            </View>
-
-            {/* Script */}
-            <View style={styles.scriptBox}>
-              <Text style={styles.scriptText}>{protocolResult.script}</Text>
-              <Pressable
-                onPress={() => handleCopyScript(protocolResult.script)}
-                style={styles.copyBtn}
-              >
-                <AppIcon name="content_copy" size={12} color="#FAFAFA" />
-                <Text style={styles.copyBtnText}>
-                  {copied ? 'Copied to Clipboard!' : 'Copy Script'}
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* Linked Rule Button */}
-            <Pressable
-              onPress={() => {
-                router.back();
-                setTimeout(() => {
-                  router.push(`/(tabs)/codex/${protocolResult.linkedRuleId}`);
-                }, 150);
-              }}
-              style={styles.linkedRuleBtn}
-            >
-              <View>
-                <Text style={styles.linkedRuleNumber}>
-                  BLACK RULE #{protocolResult.linkedRuleNumber}
-                </Text>
-                <Text style={styles.linkedRuleTitle}>
-                  {protocolResult.linkedRuleTitle}
-                </Text>
+            {/* 2. Exact Words to Say */}
+            <View style={styles.scriptCard}>
+              <View style={styles.scriptHeader}>
+                <Text style={styles.scriptHeaderLabel}>EXACT WORDS TO SAY</Text>
+                <Pressable
+                  onPress={() => handleCopyScript(protocolResult.scriptToSay)}
+                  style={styles.copyBtn}
+                >
+                  <AppIcon name="content_copy" size={12} color="#FAFAFA" />
+                  <Text style={styles.copyBtnText}>
+                    {copied ? 'Copied!' : 'Copy Script'}
+                  </Text>
+                </Pressable>
               </View>
-              <AppIcon name="arrow_forward" size={14} color="#FAFAFA" />
-            </Pressable>
+
+              <Text style={styles.scriptText}>{protocolResult.scriptToSay}</Text>
+            </View>
+
+            {/* 3. 3 Action Steps */}
+            <View style={styles.card}>
+              <Text style={styles.cardHeader}>3 ACTION STEPS</Text>
+              <View style={styles.stepsList}>
+                {protocolResult.steps.map((step, idx) => (
+                  <View key={idx} style={styles.stepRow}>
+                    <View style={styles.stepNumberBadge}>
+                      <Text style={styles.stepNumberText}>0{idx + 1}</Text>
+                    </View>
+                    <Text style={styles.stepText}>{step}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* 4. Matched Black Rules */}
+            <View style={styles.rulesSection}>
+              <Text style={styles.cardHeader}>MATCHED BLACK RULES</Text>
+              <View style={styles.matchedRulesList}>
+                {protocolResult.matchedRules.map((rule) => (
+                  <Pressable
+                    key={rule.id}
+                    onPress={() => handleRulePress(rule.id)}
+                    style={styles.ruleCard}
+                  >
+                    <View style={styles.ruleLeft}>
+                      <Text style={styles.ruleNumber}>RULE #{rule.number}</Text>
+                      <Text style={styles.ruleTitle}>{rule.title}</Text>
+                      <Text style={styles.ruleSummary} numberOfLines={2}>
+                        {rule.summary}
+                      </Text>
+                    </View>
+                    <AppIcon name="arrow_forward" size={14} color="#FFFFFF" />
+                  </Pressable>
+                ))}
+              </View>
+            </View>
           </View>
         )}
       </ScrollView>
@@ -303,7 +286,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#27272A',
@@ -324,9 +307,9 @@ const styles = StyleSheet.create({
     color: '#FAFAFA',
   },
   closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#18181B',
     borderWidth: 1,
     borderColor: '#27272A',
@@ -342,7 +325,7 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
     gap: 16,
   },
-  creditsRow: {
+  usageRow: {
     backgroundColor: '#121215',
     borderWidth: 1,
     borderColor: '#27272A',
@@ -351,7 +334,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     alignSelf: 'flex-start',
   },
-  creditsText: {
+  usageText: {
     fontFamily: fonts.label,
     fontSize: 9,
     color: '#A1A1AA',
@@ -371,123 +354,122 @@ const styles = StyleSheet.create({
     color: '#71717A',
     letterSpacing: 1,
   },
-  dilemmaTextInput: {
+  textInput: {
     fontFamily: fonts.body,
     fontSize: 14,
     color: '#FAFAFA',
-    minHeight: 80,
+    minHeight: 70,
     textAlignVertical: 'top',
     lineHeight: 20,
   },
-  presetsSection: {
+  chipsSection: {
     gap: 8,
   },
-  presetsLabel: {
+  chipsLabel: {
     fontFamily: fonts.label,
     fontSize: 9,
     color: '#71717A',
     letterSpacing: 1,
   },
-  presetChipsRow: {
+  chipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  presetChip: {
+  chip: {
     backgroundColor: '#121215',
     borderWidth: 1,
     borderColor: '#27272A',
     borderRadius: 8,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 7,
   },
-  presetChipActive: {
+  chipActive: {
     borderColor: '#FFFFFF',
     backgroundColor: '#18181B',
   },
-  presetChipText: {
+  chipText: {
     fontFamily: fonts.body,
     fontSize: 12,
     color: '#A1A1AA',
   },
-  presetChipTextActive: {
+  chipTextActive: {
     color: '#FAFAFA',
   },
-  generateBtn: {
+  analyzeBtn: {
     height: 50,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
+    marginTop: 2,
   },
-  generateBtnDisabled: {
+  analyzeBtnDisabled: {
     opacity: 0.4,
   },
-  generateBtnText: {
+  analyzeBtnText: {
     fontFamily: fonts.labelSemiBold,
     fontSize: 12,
     color: '#09090B',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
-  resultCard: {
+  breakdownContainer: {
+    gap: 14,
+    marginTop: 6,
+  },
+  card: {
     backgroundColor: '#121215',
     borderWidth: 1,
     borderColor: '#27272A',
     borderRadius: 14,
     padding: 16,
-    gap: 14,
-    marginTop: 8,
+    gap: 10,
   },
-  resultHeader: {
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#27272A',
-  },
-  resultBadgeText: {
-    fontFamily: fonts.labelSemiBold,
-    fontSize: 10,
-    color: '#FFFFFF',
-    letterSpacing: 1,
-  },
-  partBlock: {
-    gap: 6,
-  },
-  partTitle: {
+  cardHeader: {
     fontFamily: fonts.label,
     fontSize: 9,
     color: '#71717A',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
-  partBody: {
+  bodyText: {
     fontFamily: fonts.body,
     fontSize: 13,
     color: '#D4D4D8',
-    lineHeight: 19,
+    lineHeight: 20,
   },
-  scriptBox: {
+  scriptCard: {
     backgroundColor: '#050507',
     borderLeftWidth: 3,
     borderLeftColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#27272A',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 16,
     gap: 10,
+  },
+  scriptHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  scriptHeaderLabel: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 9,
+    color: '#FFFFFF',
+    letterSpacing: 1.2,
   },
   scriptText: {
     fontFamily: fonts.display,
     fontStyle: 'italic',
-    fontSize: 13,
+    fontSize: 14,
     color: '#FAFAFA',
-    lineHeight: 20,
+    lineHeight: 22,
   },
   copyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
+    gap: 5,
     backgroundColor: '#18181B',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -498,28 +480,75 @@ const styles = StyleSheet.create({
   copyBtnText: {
     fontFamily: fonts.label,
     fontSize: 9,
-    color: '#A1A1AA',
+    color: '#FAFAFA',
   },
-  linkedRuleBtn: {
+  stepsList: {
+    gap: 10,
+  },
+  stepRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  stepNumberBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
     backgroundColor: '#18181B',
     borderWidth: 1,
     borderColor: '#27272A',
-    borderRadius: 10,
-    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
   },
-  linkedRuleNumber: {
+  stepNumberText: {
+    fontFamily: fonts.labelSemiBold,
+    fontSize: 9,
+    color: '#A1A1AA',
+  },
+  stepText: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: '#FAFAFA',
+    lineHeight: 19,
+  },
+  rulesSection: {
+    gap: 10,
+  },
+  matchedRulesList: {
+    gap: 10,
+  },
+  ruleCard: {
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  ruleLeft: {
+    flex: 1,
+    gap: 3,
+  },
+  ruleNumber: {
     fontFamily: fonts.label,
     fontSize: 9,
     color: '#71717A',
     letterSpacing: 0.8,
   },
-  linkedRuleTitle: {
+  ruleTitle: {
     fontFamily: fonts.headlineMedium,
-    fontSize: 13,
+    fontSize: 14,
     color: '#FAFAFA',
-    marginTop: 2,
+  },
+  ruleSummary: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: '#71717A',
+    lineHeight: 16,
   },
 });

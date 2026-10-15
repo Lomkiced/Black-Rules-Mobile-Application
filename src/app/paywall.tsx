@@ -13,13 +13,18 @@ import { AppIcon } from '../components/ui/AppIcon';
 import { LoadingDots } from '../components/ui/LoadingOverlay';
 import { fonts } from '../theme/tokens';
 import { useUserStore } from '../store/useUserStore';
+import {
+  purchaseProPlan,
+  restoreProPurchases,
+  openStripeWebCheckout,
+} from '../lib/revenuecat';
 
 type PlanType = 'annual' | 'monthly';
 
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setPro } = useUserStore();
+  const { setPro, setToast } = useUserStore();
 
   const [selectedPlan, setSelectedPlan] = useState<PlanType>('annual');
   const [isAuthorizing, setIsAuthorizing] = useState(false);
@@ -34,7 +39,7 @@ export default function PaywallScreen() {
     setSelectedPlan(plan);
   };
 
-  const handleRestore = () => {
+  const handleRestore = async () => {
     if (restoreStatus !== 'idle') return;
     try {
       Haptics.selectionAsync();
@@ -43,9 +48,11 @@ export default function PaywallScreen() {
     }
     setRestoreStatus('connecting');
 
-    setTimeout(() => {
+    const result = await restoreProPurchases();
+    if (result.restored) {
       setRestoreStatus('verified');
       setPro(true);
+      setToast('ENTITLEMENT RESTORED // SOVEREIGN PRO');
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {
@@ -54,10 +61,13 @@ export default function PaywallScreen() {
       setTimeout(() => {
         router.back();
       }, 700);
-    }, 800);
+    } else {
+      setRestoreStatus('idle');
+      setToast('NO ACTIVE ENTITLEMENT FOUND');
+    }
   };
 
-  const handlePurchase = () => {
+  const handlePurchase = async () => {
     if (isAuthorizing) return;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -66,16 +76,33 @@ export default function PaywallScreen() {
     }
     setIsAuthorizing(true);
 
-    setTimeout(() => {
+    const result = await purchaseProPlan(selectedPlan);
+    setIsAuthorizing(false);
+
+    if (result.success) {
       setPro(true);
-      setIsAuthorizing(false);
+      setToast('SOVEREIGN ACCESS UNLOCKED // PRO');
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {
         // fallback
       }
       router.back();
-    }, 700);
+    } else if (result.error && result.error !== 'PURCHASE_CANCELLED') {
+      setToast(`CHECKOUT: ${result.error}`);
+    }
+  };
+
+  const handleStripeFallback = async () => {
+    try {
+      Haptics.selectionAsync();
+    } catch {
+      // fallback
+    }
+    const opened = await openStripeWebCheckout();
+    if (!opened) {
+      setToast('STRIPE LINK NOT CONFIGURED');
+    }
   };
 
   return (
@@ -250,11 +277,48 @@ export default function PaywallScreen() {
           )}
         </Pressable>
 
+        {/* Web Checkout Secondary Option */}
+        <Pressable
+          onPress={handleStripeFallback}
+          style={styles.stripeBtn}
+        >
+          <AppIcon name="lock" size={13} color="#A1A1AA" />
+          <Text style={styles.stripeBtnText}>Pay with Card via Stripe Web Checkout</Text>
+        </Pressable>
+
         <Text style={styles.footerNote}>
           {selectedPlan === 'annual'
-            ? '7 days free, then $29.99/year. Cancel anytime.'
-            : '$4.99/month. Cancel anytime.'}
+            ? '7 days free, then $29.99/year. Cancel anytime in App Store / Play Store settings.'
+            : '$4.99/month. Cancel anytime in Store settings.'}
         </Text>
+
+        {/* App Store & Google Play Mandatory Compliance Links */}
+        <View style={styles.complianceLinksRow}>
+          <Pressable
+            onPress={() => router.push('/legal' as any)}
+            hitSlop={8}
+          >
+            <Text style={styles.complianceLink}>Terms of Service</Text>
+          </Pressable>
+
+          <Text style={styles.complianceDot}>•</Text>
+
+          <Pressable
+            onPress={() => router.push('/legal' as any)}
+            hitSlop={8}
+          >
+            <Text style={styles.complianceLink}>Privacy Policy</Text>
+          </Pressable>
+
+          <Text style={styles.complianceDot}>•</Text>
+
+          <Pressable
+            onPress={handleRestore}
+            hitSlop={8}
+          >
+            <Text style={styles.complianceLink}>Restore</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </View>
   );
@@ -464,5 +528,39 @@ const styles = StyleSheet.create({
     color: '#71717A',
     textAlign: 'center',
     lineHeight: 14,
+  },
+  stripeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    borderRadius: 10,
+  },
+  stripeBtnText: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    color: '#A1A1AA',
+    letterSpacing: 0.4,
+  },
+  complianceLinksRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 8,
+  },
+  complianceLink: {
+    fontFamily: fonts.label,
+    fontSize: 11,
+    color: '#A1A1AA',
+    textDecorationLine: 'underline',
+  },
+  complianceDot: {
+    color: '#3F3F46',
+    fontSize: 12,
   },
 });
